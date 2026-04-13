@@ -30,8 +30,64 @@
 4. **所有写作操作前，先读相关 truth files**，不要凭记忆写作
 5. **结算的准确性高于速度**——宁可多读文件也不要漏更新
 
+## 数据位置（优先读配置文件，没有再问）
+
+**不要假设 books 目录的位置。** 不同作者可能把书籍数据放在不同地方：
+
+- `~/novels/books/<书名>/`
+- `~/Documents/writing/books/<书名>/`
+- `<某个项目目录>/books/<书名>/`
+- 任何作者自己选的路径
+
+### 配置文件：`.ink-writer.yaml`
+
+books 根目录信息**持久化**在 `<父目录>/books/.ink-writer.yaml` 文件里。作者只需要告诉你一次，之后每次对话你都从这里读。
+
+配置文件 schema：
+
+```yaml
+# <父目录>/books/.ink-writer.yaml
+booksRoot: /Users/admin/novels/books    # books 目录的绝对路径（必须以 /books 结尾）
+createdAt: <ISO timestamp>              # 首次创建时间
+# 未来可扩展字段（作者偏好、跨书共享规则、默认字数目标等）
+```
+
+### 启动流程（每次对话开始时自动执行）
+
+1. **优先尝试读配置文件**：
+   - 查找 Claude Code 当前工作目录及其父级链路中，是否存在 `books/.ink-writer.yaml`
+   - 常见位置：`./books/.ink-writer.yaml`（当前目录是父目录时）、`../.ink-writer.yaml`（当前目录是某本书 `<父目录>/books/<书名>/`时）
+   - 读到 `booksRoot` 字段 → 确认该路径存在 → 作为本次对话的 books 根目录
+
+2. **配置文件不存在时，问作者**：
+   > 「我没找到 `.ink-writer.yaml` 配置。你的 books 根目录（绝对路径）是什么？我会在那里创建配置文件，下次对话就不用再问了。」
+
+3. **作者回答后**：
+   - 确认该路径存在（不存在就提示作者手动创建 `mkdir -p <父目录>/books`）
+   - **不要自动 `mkdir`**——作者应该知道数据放在哪
+   - 路径确认后，由你（LLM）写入 `<父目录>/books/.ink-writer.yaml`：
+     ```yaml
+     booksRoot: <作者给的绝对路径>
+     createdAt: <当前 ISO 时间戳>
+     ```
+
+4. **记住本次对话的根路径**，之后所有"读写书籍数据"的操作都基于这个路径
+
+### 本文档后续章节的路径约定
+
+本文档后续章节会用以下占位符，**不是字面路径**：
+
+| 占位符 | 含义 |
+|--------|------|
+| `<父目录>/books` | `.ink-writer.yaml` 中 `booksRoot` 字段的值 |
+| `<父目录>/books/<书名>/` | 某本书的根目录（等价"书籍项目根"）|
+| `<父目录>/books/<书名>/story/` | 该书的 truth files + 基础文件目录 |
+| `<父目录>/books/<书名>/chapters/` | 该书的章节正文目录 |
+
+举例：如果配置文件里 `booksRoot = /Users/admin/novels/books`，书名 = `镜源逆刻`，那么 `<父目录>/books/<书名>/story/current_state.md` 展开为 `/Users/admin/novels/books/镜源逆刻/story/current_state.md`。
+
 ## 数据边界
 
-- 所有书籍数据在 `~/.inkos/data/books/<书名>/`
-- 不要操作该目录之外的文件，除非用户明确指定
+- 所有书籍数据在作者指定的 `<父目录>/books/<书名>/` 目录下
+- 不要操作该目录之外的文件，除非作者明确指定
 - 快照目录（`snapshots/N/`）是历史档案，**不可修改**（见 §10）

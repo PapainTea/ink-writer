@@ -12,7 +12,7 @@
 
 | 必问 | 用途 |
 |------|------|
-| **书名** | 决定目录名 `~/.inkos/data/books/<书名>/` |
+| **书名** | 决定目录名 `<父目录>/books/<书名>/` |
 | **题材方向** | 玄幻 / 都市 / 科幻 / 同人 / ... 决定写作风格倾向 |
 | **主角设定** | 一两句话即可：身份 + 核心优势 + 性格底色 |
 | **故事梗概** | 一段话：起点 + 主线冲突 + 大致目标 |
@@ -32,7 +32,7 @@
 
 ## 2. 产出 5 个基础文件
 
-收集到足够信息后，Claude 直接写出以下 5 个文件（写到 `~/.inkos/data/books/<书名>/story/` 下）：
+收集到足够信息后，Claude 直接写出以下 5 个文件（写到 `<父目录>/books/<书名>/story/` 下）：
 
 | 文件 | 内容 | schema 参考 |
 |------|------|------------|
@@ -64,7 +64,7 @@
 ## 4. 初始化目录结构
 
 ```bash
-BOOK_DIR=~/.inkos/data/books/<书名>
+BOOK_DIR=<父目录>/books/<书名>
 mkdir -p "$BOOK_DIR/story/audits"
 mkdir -p "$BOOK_DIR/story/snapshots"
 mkdir -p "$BOOK_DIR/chapters"

@@ -32,7 +32,7 @@ Step 11 写入正文文件 + 更新 index.json
 ### 操作
 
 1. 如果用户未指定书名 → 询问（或根据上下文推断）
-2. 列出 `~/.inkos/data/books/<书名>/chapters/` 目录
+2. 列出 `<父目录>/books/<书名>/chapters/` 目录
 3. 找到最大章节号 N
 4. 下一章号 = N + 1
 
@@ -48,7 +48,7 @@ Step 11 写入正文文件 + 更新 index.json
 
 ### 必读文件清单
 
-从 `~/.inkos/data/books/<书名>/story/` 读：
+从 `<父目录>/books/<书名>/story/` 读：
 
 1. `story_bible.md` — 世界观设定
 2. `volume_outline.md` — 卷纲（**定位到当前章节的大纲节点**）
@@ -61,7 +61,7 @@ Step 11 写入正文文件 + 更新 index.json
 9. `emotional_arcs.md` — 情感弧线（重点看最近 3-5 章）
 10. `character_matrix.md` — 角色交互矩阵
 
-从 `~/.inkos/data/books/<书名>/chapters/` 读：
+从 `<父目录>/books/<书名>/chapters/` 读：
 
 11. 最近 1 章正文（第 N-1 章）—— 用于过渡衔接
 12. `index.json` — 章节索引
@@ -295,7 +295,7 @@ Step 11 写入正文文件 + 更新 index.json
 简要命令：
 
 ```bash
-BOOK_DIR=~/.inkos/data/books/<书名>
+BOOK_DIR=<父目录>/books/<书名>
 SNAP_DIR=$BOOK_DIR/story/snapshots/<N>
 
 mkdir -p $SNAP_DIR

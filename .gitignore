@@ -1,3 +1,6 @@
+# 本地书籍数据（用户的实际小说，不公开）
+books/
+
 # macOS
 .DS_Store
 .AppleDouble

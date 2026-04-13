@@ -30,26 +30,39 @@ ink_writer 是一个**纯 prompt 驱动**的写作系统，配合 Claude Code（
 
 ## 安装（3 步）
 
-### Step 1：把 instruction 文件复制到你的书籍项目
+### Step 1：自己决定 books 根目录
+
+ink_writer **不强制任何固定路径**。你可以把书籍数据放在任何地方，例如：
+- `~/novels/`
+- `~/Documents/writing/`
+- `~/Projects/my-book/`
+- 甚至 iCloud Drive / Dropbox 下的目录
+
+本文档用 `<父目录>/books` 代表你选的根目录。
+
+### Step 2：手动创建书籍目录
 
 ```bash
-# 准备书籍目录
-mkdir -p ~/.inkos/data/books/<你的书名>/{story,chapters}
-mkdir -p ~/.inkos/data/books/<你的书名>/.claude
+# 假设你决定把 books 放在 ~/novels/
+export BOOKS_ROOT=~/novels
+mkdir -p $BOOKS_ROOT/<你的书名>/{story,chapters}
+mkdir -p $BOOKS_ROOT/<你的书名>/.claude
 
-# 复制 instruction
+# 把 ink_writer 的 CLAUDE.md 复制到这本书的 .claude/ 目录
 cp /path/to/ink_writer/dist/CLAUDE.md \
-   ~/.inkos/data/books/<你的书名>/.claude/CLAUDE.md
+   $BOOKS_ROOT/<你的书名>/.claude/CLAUDE.md
 ```
 
-### Step 2：在书籍项目下打开 Claude Code
+### Step 3：在书籍项目下打开 Claude Code
 
 ```bash
-cd ~/.inkos/data/books/<你的书名>
+cd $BOOKS_ROOT/<你的书名>
 claude
 ```
 
-### Step 3：用自然语言写作
+第一次对话时 Claude 会主动问你 books 根目录在哪，告诉它绝对路径即可。
+
+### Step 4：用自然语言写作
 
 直接说话即可，Claude 会自动加载 instruction 并按规则执行。
 
@@ -132,7 +145,7 @@ Claude：[加载被审章节正文 + 前一章 + 所有 truth files + 大纲]
 ## 数据目录结构
 
 ```
-~/.inkos/data/books/<书名>/
+<父目录>/books/<书名>/
 ├── story/                          # 世界状态层
 │   ├── story_bible.md              # 世界观（你手写或 AI 生成，少改）
 │   ├── volume_outline.md           # 卷纲 / 章节大纲

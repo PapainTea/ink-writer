@@ -32,7 +32,7 @@
 Writer 流程末尾会自动调用 `state.snapshotState(bookId, N)`。手动执行等价命令：
 
 ```bash
-BOOK_DIR=~/.inkos/data/books/<书名>
+BOOK_DIR=<父目录>/books/<书名>
 CHAPTER_NUM=<N>
 SNAP_DIR="$BOOK_DIR/story/snapshots/$CHAPTER_NUM"
 mkdir -p "$SNAP_DIR"
@@ -61,7 +61,7 @@ fi
 **回滚前先做安全备份**：
 
 ```bash
-BOOK_DIR=~/.inkos/data/books/<书名>
+BOOK_DIR=<父目录>/books/<书名>
 TS=$(date +%Y%m%d%H%M%S)
 cp -R "$BOOK_DIR/story" "$BOOK_DIR/story.backup-$TS"
 ```
