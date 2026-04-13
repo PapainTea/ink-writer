@@ -95,7 +95,7 @@
 5. 不改变剧情走向和核心冲突
 6. 保持原文的语言风格和节奏
 7. 修改后同步更新状态卡、账本、伏笔池
-8. 保持章节字数在目标区间内（若启用 `lengthSpec`）；只有在修复关键问题确实需要时才允许轻微偏离
+8. 保持章节字数在目标区间内（依据 `book_rules.yaml.length` 配置，详见 §03）；只有在修复关键问题确实需要时才允许轻微偏离
 
 ## 输出格式
 
@@ -197,7 +197,7 @@ reviser LLM 的 user prompt 中会拼入以下上下文：
 - `style_guide.md`（或 `book_rules.md` body fallback）
 - `parent_canon.md`（番外专用）
 - `fanfic_canon.md`（同人专用，额外约束"角色对话必须保留原作语癖"）
-- 若启用 `lengthSpec` —— 字数护栏段：`目标字数 / 允许区间 / 极限区间`
+- 若 `book_rules.yaml.length` 已配置 —— 字数护栏段：`target / softMin-softMax / hardMin-hardMax`（详见 §03）
 
 ## 质量 Gate
 

@@ -774,6 +774,29 @@ chapterTypesOverride: []
 fatigueWordsOverride: []                             # 覆盖题材默认的疲劳词列表
 additionalAuditDimensions: []                        # 追加自定义审稿维度
 enableFullCastTracking: false                        # 是否全员角色追踪
+
+length:                                              # 字数配置（canonical，详见 §04 / §09）
+  target: 4500                                         # 目标字数
+  softMinPct: 10                                       # softMin = target × (1 - 10%) = 4050
+  softMaxPct: 10                                       # softMax = target × (1 + 10%) = 4950
+  hardMinPct: 20                                       # hardMin = target × (1 - 20%) = 3600
+  hardMaxPct: 20                                       # hardMax = target × (1 + 20%) = 5400
+  countingMode: zh_chars                               # zh_chars / en_words
+  enforceSoftMin: true                                 # 字数 < softMin 时默认扩写（可 PRE_WRITE_CHECK 声明例外跳过）
+  enforceHardMin: true                                 # 字数 < hardMin 时硬 block 必须扩写
+
+hardRules:                                           # 硬性规则开关（默认全开，作者可关掉某项）
+  banDash: true                                        # 禁止破折号 ——
+  banBushiErshi: true                                  # 禁止「不是…而是…」句式
+  banAnalysisTerms: true                               # 禁止分析术语（核心动机/信息边界 等）
+  banCollectiveShock: true                             # 禁止集体反应套话
+  banMarkdownLeakage: true                             # 禁止 md 结构化标记泄漏（--- / ### / ** / 列表等）
+  maxMarkerWordsPer3000: 1                             # 转折/惊讶标记词上限（每 3000 字 1 次）
+
+pipeline:                                            # 写章流程行为开关
+  autoRunAudit: true                                   # Step 7 审计默认必跑（详见 §04 Step 7）
+  autoRunVerify: true                                  # Step 12 完成后必跑 verify-chapter.py（详见 §04 Step 12）
+  autoExpandIfShort: true                              # 字数不足时自动扩写循环
 ---
 
 ## 叙事视角
@@ -849,7 +872,7 @@ Step 3  规划（Planner）—— 确定本章意图
 Step 4  写作前自检（PRE_WRITE_CHECK）
 Step 5  写正文（Writer）
 Step 6  写后校验（Post-write Validator，机械规则检查）
-Step 7  审计（Auditor，可选，用户决定是否触发）
+Step 7  审计（Auditor，**默认必跑**，作者可显式 opt-out）
 Step 8  修订（Reviser，如审计发现 critical 问题）
 Step 9  结算（Settler）—— 更新 7 个 truth files
 Step 10 快照（Snapshot）—— 保存当前状态到 snapshots/N/
@@ -979,13 +1002,56 @@ Step 11 写入正文文件 + 更新 index.json
 | 待回收伏笔 | <Hook-A / Hook-B> | 与伏笔池一致 |
 | 本章冲突 | <一句话概括> | |
 | 章节类型 | <开篇/过渡/高潮/转折/回忆 等> | |
-| 风险扫描 | OOC / 信息越界 / 设定冲突 / 战力崩坏 / 节奏 / 词汇疲劳 | 逐项自检 |
+| 目标字数 | target=<X> / softMin=<A> / hardMin=<B> | 来自 book_rules.length 或作者指定 |
+| 字数预算分配 | 见下方场景表 | 总和 ≈ target ± 5% |
+| 允许偏短声明 | `是` / `否` | 见下方例外声明 |
+| 风险扫描 | OOC / 信息越界 / 设定冲突 / 战力崩坏 / 节奏 / 词汇疲劳 / Markdown 结构泄漏 | 逐项自检 |
 ```
+
+### 场景级字数预算（必填）
+
+把目标字数拆成 3-6 个场景，每个场景估计 300-1500 字。**预算总和必须等于 target ± 5%**，否则 LLM 会把目标错理解成"情节完整即可"，写完偏短。
+
+```markdown
+### 字数预算
+
+| # | 场景概述 | 预算字数 | 在章内的功能 |
+|---|---------|--------|------------|
+| 1 | <场景 1 概述> | ~600 | 开场、承接、引冲突 |
+| 2 | <场景 2 概述> | ~800 | 推进 / 博弈 |
+| 3 | <场景 3 概述> | ~1200 | 核心戏 / 高潮 |
+| 4 | <场景 4 概述> | ~900 | 转折 / 兑现 |
+| 5 | <场景 5 概述> | ~600 | 落幕 / 钩子 |
+|   | **合计** | **~4100** | （target=4500，误差 -8.9%，可接受）|
+```
+
+**写作时对照预算**：写完一个场景对照一下实际字数，偏离超过预算 30% 要调整后续场景或补写当前场景。
+
+### 允许偏短声明（可选，用于特殊章节类型）
+
+**什么情况下可以声明"本章允许偏短"**（跳过 Step 6 的自动扩写）：
+
+- **转场章**：跨弧转场，节奏紧凑是刻意设计（如 ch15 巡坊→侯城）
+- **动作章**：纯动作/打斗，字数紧凑更有冲击力
+- **短过渡章**：两个大场景之间的过渡，不需要铺太多
+- **其他**：作者明确判断本章情节紧凑、不宜注水
+
+**声明格式**：
+
+```markdown
+### 允许偏短声明
+
+**本章允许偏短**：是
+**理由**：转场章（ch15 离开巡坊 + 镜核首触发），动作密度高，字数紧凑更有冲击力。预算 3500 字（低于 softMin 4050 但高于 hardMin 3600），情节饱和即停。
+```
+
+**注意**：即使声明允许偏短，字数**仍然不能 < hardMin**（硬下限无条件生效）。
 
 ### 自检原则
 
 - 所有字段**不能为空**或写"待定"
 - 如果某项答不上来 → 回到 Step 3 补齐规划
+- 字数预算总和必须 ≈ target ± 5%（否则回到 Step 3 重新分配）
 - 这张表是写作的"锚"，写的时候要回头看
 
 ---
@@ -1010,10 +1076,18 @@ Step 11 写入正文文件 + 更新 index.json
 
 ### 字数要求
 
-- 目标字数：来自 `book_rules.yaml` 的 `chapterWordCount` 或用户指定
-- 软区间：目标 ± 10%（如目标 3000，软区间 2700-3300）
-- 硬区间：目标 ± 20%（如目标 3000，硬区间 2400-3600）
-- 写作时瞄准目标，偏离软区间会在 Step 6 触发长度归一化
+字数配置来自 `book_rules.yaml.length.*`（canonical schema，详见 §03）：
+
+- **target**：目标字数（例 4500）
+- **softMin = target × (1 - softMinPct%)**（例 4050）
+- **softMax = target × (1 + softMaxPct%)**（例 4950）
+- **hardMin = target × (1 - hardMinPct%)**（例 3600）
+- **hardMax = target × (1 + hardMaxPct%)**（例 5400）
+- **countingMode**：`zh_chars`（按 CJK 字符数）或 `en_words`
+
+**写作策略**：瞄准 target，允许在 softMin ~ softMax 之间波动。偏离处理见 §04 Step 6。
+
+**作者临时覆盖**：作者在当前对话里指定字数（例"这章写 5000"）→ 本章 target 覆盖为 5000，但不改 book_rules。
 
 ### 写作铁律（简要，完整见 05-writing-rules.md）
 
@@ -1031,37 +1105,68 @@ Step 11 写入正文文件 + 更新 index.json
 
 ### 执行方式
 
-机械规则检查，LLM 扫描正文后输出问题列表（不自动修复）。
+机械规则检查 + 字数检查。完整规则见 §09（12 条机械规则）和下方字数分层处理。
 
-完整规则见 09-post-write-validation.md，简要：
+### 6.1 机械规则检查
 
-- 禁止句式检测（"不是...而是..."、破折号）
-- 疲劳词密度（≤ 1 次/章）
-- 转折标记词密度（≤ 1 次/3000 字）
-- 连续"了"字（≥ 6 句连续含"了"）
-- 段落过长（≥ 2 段超过 300 字）
-- 分析术语泄漏（"核心动机"等）
+简要 12 条（详见 §09）：
+
+- 禁止句式（"不是...而是..."、破折号、markdown 结构泄漏 `---`/`###`/`**`/列表 等）
+- 疲劳词密度 / 转折标记词密度
+- 连续"了"字 / 段落过长
+- 分析术语泄漏 / 作者说教词 / 集体反应
 - 本书禁忌违规
 
-### 结果处理
+**结果处理**：
+- 无问题 → 进入 6.2 字数检查
+- ERROR 级 → 自动触发一次 spot-fix（局部修复），然后重新 Step 6.1
+- WARNING 级 → 报告给作者，由作者决定是否修
 
-- 无问题 → 继续 Step 7
-- 有 ERROR 级问题 → 自动触发一次 spot-fix（局部修复），然后重新 Step 6
-- 有 WARNING 级问题 → 报告给用户，由用户决定是否修
+### 6.2 字数分层处理（核心改动）
 
-### 防无限循环
+测量 CJK 字数（`countingMode = zh_chars`）或 en_words，与 `book_rules.yaml.length` 的区间对比：
 
-同一个问题修复 2 次仍未通过 → 停止自动修复，报告给用户人工介入。
+| 区间 | 条件 | 行为 |
+|------|------|------|
+| **字数 ≥ softMin** | 正常范围（含 > softMax 但 ≤ hardMax）| 无事，继续 Step 7。若 softMax < 字数 ≤ hardMax，附一条 `lengthWarnings` 提示作者 |
+| **softMin > 字数 ≥ hardMin** | 偏短但不硬违规 | 默认触发**一次**扩写循环（见下方）。**例外**：如果 PRE_WRITE_CHECK 中声明了"本章允许偏短"+ 理由，跳过扩写并附 `lengthWarnings` |
+| **字数 < hardMin** | 硬违规 | **无条件**硬 block，必须扩写到 ≥ hardMin 才能继续。作者的"允许偏短"声明**无效** |
+| **字数 > hardMax** | 超长 | 触发一次压缩循环，目标回到 softMax 以内 |
+
+### 6.3 扩写循环（softMin / hardMin 不达标时）
+
+1. 找正文里"单薄场景"——字数远低于该场景在 PRE_WRITE_CHECK 字数预算里的分配
+2. 在**不改事实**的前提下补细节（感官、动作、人物反应、环境）
+3. 绝对禁止新增情节、新 hook_id、新角色
+4. 扩完再测字数，仍不达标 → 继续循环（最多 2 次）
+5. 2 次仍不达标 → 报告作者，让作者决定：人工扩写 / 放弃达标并 approve / 降低 book_rules.length.target
+
+### 6.4 压缩循环（> hardMax 时）
+
+1. 找冗余细节、重复的环境描写
+2. 合并/删除（保留所有事实性事件）
+3. 压完再测字数
+
+### 6.5 防无限循环
+
+同一个字数问题 2 次循环仍未通过 → 停止自动循环，报告作者介入。同一条机械规则 2 次 spot-fix 仍未通过 → 同样停止。
 
 ---
 
-## Step 7: 审计（可选）
+## Step 7: 审计（默认必跑）
 
-### 触发条件
+### 触发条件（默认行为）
 
-- 用户写章时明确说"写完后审计" → 自动触发
-- 用户说"审计第 N 章" → 独立触发（跳过 Step 1-6）
-- 默认情况下：**不自动触发**，用户可在写完后手动触发
+**写章流程走到 Step 7 时必须跑一次审计**，这是默认行为，不需要作者显式触发。产出 `story/audits/ch-N.md`（详见 §06 输出格式）。
+
+### 例外：作者可显式 opt-out
+
+- 作者在同一对话里说"这章先不审计" / "skip audit" / "写完不审" → 跳过 Step 7，status 设为 `draft`
+- `book_rules.yaml.pipeline.autoRunAudit = false`（配置层关闭，整本书都跳过审计；作者自担风险）
+
+### 独立触发（跳过写章流程）
+
+- 作者直接说"审计第 N 章" / "审稿第 N 章" / "check chapter N" → 不经过 Step 1-6，直接跑 Step 7，产出审计 md，不改 status 也不进 Step 8-11
 
 ### 执行方式
 
@@ -1198,6 +1303,52 @@ cp $BOOK_DIR/story/character_matrix.md $SNAP_DIR/
 - 文件名规则：4 位章节号（不足补 0）+ 下划线 + 标题 + `.md`。例：第 1 章 `0001_序章.md`，第 14 章 `0014_收网.md`
 - **正文第一行写章节标题**：`# 第 N 章 <标题>`（文件名和正文都有标题，便于 markdown 直接阅读）
 - 例：文件 `0014_收网.md` 的正文第一行是 `# 第14章 收网`，然后空一行进入正文
+
+---
+
+## Step 12: 完成验证（强制）
+
+写完 Step 11 后，**必须**运行验证脚本确认所有副作用都到位。这是章节完成的最终门槛——不通过不算完成。
+
+### 执行命令
+
+```bash
+python3 <ink_writer 仓库路径>/scripts/verify-chapter.py <books 绝对路径> <书名> <N>
+```
+
+例：
+
+```bash
+python3 /Users/admin/Codex/Project/Own/ink_writer/scripts/verify-chapter.py \
+    /Users/admin/novels/books \
+    镜源逆刻 15
+```
+
+如果 PRE_WRITE_CHECK 声明了"本章允许偏短"，加 `--allow-short` 参数：
+
+```bash
+python3 .../verify-chapter.py <books-root> <书名> <N> --allow-short
+```
+
+### 三层检查内容（详见 `scripts/verify-chapter.py` 文件头注释）
+
+| Layer | 检查内容 | 失败即 |
+|-------|---------|--------|
+| **1 强制不变量** | 正文存在 + index 条目 + snapshots/N/ 含 7 truth files + current_state 章节号对 + chapter_summaries 有 ch N 行 + audits/ch-N.md 存在 | exit 1 |
+| **2 机械规则** | 破折号=0 / 不是而是=0 / 分析术语=0 / md 结构泄漏=0 / 字数≥hardMin（softMin 受 `--allow-short` 控制）| exit 2 |
+| **3 条件性副作用** | 审计 md 里声明"推进 X truth file"时，对应文件必须有 ch N 行/变化 | exit 3 |
+
+### 失败处理
+
+- **Layer 1 失败** → 回到对应步骤补齐（通常是 Step 9 结算或 Step 10 快照漏了）
+- **Layer 2 失败** → 回到 Step 6 跑一次机械校验 + 修订
+- **Layer 3 失败** → 审计声明与实际改动不一致，回到 Step 9 补齐对应 truth file 或调整审计 md
+
+**永远不要靠"章节看起来写完了"就收工**。人眼看不出 chapter_summaries 某行粘连、snapshots 某个文件缺失、audits 声明和实际 truth files 不一致——这些都是 verify 脚本擅长捕捉的机械问题。
+
+### 例外：`autoRunVerify = false`
+
+`book_rules.yaml.pipeline.autoRunVerify = false` 时 Step 12 跳过（作者自担风险）。默认开启。
 
 ---
 
@@ -1959,7 +2110,7 @@ LLM 综合判断，可能存在争议：
 5. 不改变剧情走向和核心冲突
 6. 保持原文的语言风格和节奏
 7. 修改后同步更新状态卡、账本、伏笔池
-8. 保持章节字数在目标区间内（若启用 `lengthSpec`）；只有在修复关键问题确实需要时才允许轻微偏离
+8. 保持章节字数在目标区间内（依据 `book_rules.yaml.length` 配置，详见 §03）；只有在修复关键问题确实需要时才允许轻微偏离
 
 ## 输出格式
 
@@ -2061,7 +2212,7 @@ reviser LLM 的 user prompt 中会拼入以下上下文：
 - `style_guide.md`（或 `book_rules.md` body fallback）
 - `parent_canon.md`（番外专用）
 - `fanfic_canon.md`（同人专用，额外约束"角色对话必须保留原作语癖"）
-- 若启用 `lengthSpec` —— 字数护栏段：`目标字数 / 允许区间 / 极限区间`
+- 若 `book_rules.yaml.length` 已配置 —— 字数护栏段：`target / softMin-softMax / hardMin-hardMax`（详见 §03）
 
 ## 质量 Gate
 

@@ -117,6 +117,29 @@ chapterTypesOverride: []
 fatigueWordsOverride: []                             # 覆盖题材默认的疲劳词列表
 additionalAuditDimensions: []                        # 追加自定义审稿维度
 enableFullCastTracking: false                        # 是否全员角色追踪
+
+length:                                              # 字数配置（canonical，详见 §04 / §09）
+  target: 4500                                         # 目标字数
+  softMinPct: 10                                       # softMin = target × (1 - 10%) = 4050
+  softMaxPct: 10                                       # softMax = target × (1 + 10%) = 4950
+  hardMinPct: 20                                       # hardMin = target × (1 - 20%) = 3600
+  hardMaxPct: 20                                       # hardMax = target × (1 + 20%) = 5400
+  countingMode: zh_chars                               # zh_chars / en_words
+  enforceSoftMin: true                                 # 字数 < softMin 时默认扩写（可 PRE_WRITE_CHECK 声明例外跳过）
+  enforceHardMin: true                                 # 字数 < hardMin 时硬 block 必须扩写
+
+hardRules:                                           # 硬性规则开关（默认全开，作者可关掉某项）
+  banDash: true                                        # 禁止破折号 ——
+  banBushiErshi: true                                  # 禁止「不是…而是…」句式
+  banAnalysisTerms: true                               # 禁止分析术语（核心动机/信息边界 等）
+  banCollectiveShock: true                             # 禁止集体反应套话
+  banMarkdownLeakage: true                             # 禁止 md 结构化标记泄漏（--- / ### / ** / 列表等）
+  maxMarkerWordsPer3000: 1                             # 转折/惊讶标记词上限（每 3000 字 1 次）
+
+pipeline:                                            # 写章流程行为开关
+  autoRunAudit: true                                   # Step 7 审计默认必跑（详见 §04 Step 7）
+  autoRunVerify: true                                  # Step 12 完成后必跑 verify-chapter.py（详见 §04 Step 12）
+  autoExpandIfShort: true                              # 字数不足时自动扩写循环
 ---
 
 ## 叙事视角
