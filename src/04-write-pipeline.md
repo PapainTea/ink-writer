@@ -18,10 +18,11 @@ Step 8  修订（Reviser，如审计发现 critical 问题）
 Step 9  结算（Settler）—— 更新 7 个 truth files
 Step 10 快照（Snapshot）—— 保存当前状态到 snapshots/N/
 Step 11 写入正文文件 + 更新 index.json
+Step 12 完成验证（强制）—— 运行 verify-chapter.py，不通过不算完成
 ```
 
 **硬约束**：
-- 绝不跳过 Step 9（结算）和 Step 10（快照）
+- 绝不跳过 Step 9（结算）、Step 10（快照）、Step 12（验证）
 - 绝不在 Step 9 之前就把正文写入 `chapters/` 目录
 - Step 2 的读取必须完整，不要凭记忆
 
