@@ -1,6 +1,10 @@
 # 本地书籍数据（用户的实际小说，不公开）
 books/
 
+# Golden-case 真实书籍验证归档（含真实章节正文、角色名、世界观，不公开）
+# fixtures/ 下的假书可以公开
+tests/golden-case-2026-04-13/
+
 # 项目级开发指引（含作者私人信息、本地路径、真实章节细节，不公开）
 # 公开开发者从 README.md 入门，详细决策记录见各 commit message
 CLAUDE.md
