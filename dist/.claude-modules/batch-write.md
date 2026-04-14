@@ -34,13 +34,16 @@ for N in [start..end]:
         # 作者说继续 → 放行此章走 snapshot + verify 即可
         # 作者说停 → 本次连写结束，保留已完成的章
 
-    # 每章独立结算 + 快照 + verify（不能合并多章）
+    # 每章独立结算 + 快照 + 流程审核（不能合并多章）
     run_settle(N)
     run_snapshot(N)
-    verify_result = run_verify(N)
 
-    if verify_result fails:
-        STOP — 报告 Layer 1/2/3 哪层挂了，不继续下一章
+    # 强制流程审核：跑 verify-chapter.py 并把完整 ✅/❌ checklist 贴给作者
+    verify_stdout, exit_code = run_verify(N)
+    show_to_author(verify_stdout)  # 13 个环节逐项可见
+
+    if exit_code != 0:
+        STOP — 具体报告哪个环节 ❌、需要补齐什么，不继续下一章
 ```
 
 ---
@@ -101,18 +104,20 @@ reviser 按 `.claude-modules/revise.md` 的 spot-fix 模式执行：只动问题
 
 ## §14.3 章间边界与中断
 
-### 每章独立结算 + 快照 + verify
+### 每章独立结算 + 快照 + 流程审核（强制）
 
 连写循环不允许"写完 5 章再批量结算"——每章必须完整跑完：
+
 1. Settler（更新 7 个 truth files）
 2. Snapshot（保存到 `snapshots/N/`）
-3. Verify（`scripts/verify-chapter.py`）
+3. **流程审核**：用 Bash 工具调用 `python3 <ink_writer 仓库>/scripts/verify-chapter.py <booksRoot> <书名> <N>`（若 PRE_WRITE_CHECK 声明"允许偏短"追加 `--allow-short`）
+4. **把 verify-chapter.py 的 stdout 完整贴给作者**（13 个 ✅/❌ 环节 + 最终汇总行）
 
-**理由**：truth files 是下一章 context 的基础，结算不及时会让下一章 planner 读到错误的状态卡。
+**理由**：truth files 是下一章 context 的基础，结算不及时会让下一章 planner 读到错误的状态卡。流程审核是**最后的兜底**，你（LLM）自己可能漏 Step 10/11，verify 脚本会把漏掉的环节用 ❌ 显式抓出来，作者一眼就能看到。
 
 ### 硬停条件（不继续下一章）
 
-1. `verify-chapter.py` Layer 1/2/3 任何一层失败
+1. `verify-chapter.py` exit code 非 0（任何 ❌ 环节）
 2. 作者在对话中说"停"/"暂停"/"先看看"/"打断"
 3. 单章迭代达到 MAX_ITER 且作者选择不继续
 
@@ -122,9 +127,11 @@ reviser 按 `.claude-modules/revise.md` 的 spot-fix 模式执行：只动问题
 
 ---
 
-## §14.4 输出格式
+## §14.4 输出格式（每章完成时必须给作者看）
 
-连写过程中每章结束时，作者必须看到：
+每章完成后的输出**必须包含两块**：连写进度小结 + verify 完整 checklist。
+
+### 块 1：连写进度小结
 
 ```markdown
 ## 第 {N} 章完成
@@ -132,10 +139,48 @@ reviser 按 `.claude-modules/revise.md` 的 spot-fix 模式执行：只动问题
 - 最终 audit：{criticals} critical, {warnings} warning, {infos} info
 - 字数：{word_count} chars（target={target}）
 - 文件：chapters/{NNNN}_{title}.md
-- verify：{passed|failed}
 
 待写：ch {N+1} ~ ch {end}（剩 {end - N} 章）
 ```
+
+### 块 2：流程审核（把 verify-chapter.py stdout 原样贴出来）
+
+直接把脚本输出的 13 个 ✅/❌ 环节贴给作者，例如：
+
+```
+=== 第 {N} 章流程审核（{书名}）===
+
+【Step 5 · 写正文】
+  ✅ chapters/<N>_*.md 存在且非空
+
+【Step 6 · 机械规则校验】
+  ✅ 禁令扫描（破折号/不是而是/分析术语/markdown 泄漏）
+  ✅ 字数区间检查
+
+【Step 7 · 审计】
+  ✅ story/audits/ch-N.md 存在
+
+【Step 9 · 结算：7 个 truth files】
+  ✅ current_state.md 当前章节 ≥ {N}
+  ✅ chapter_summaries.md 含 ch N 行
+  ✅ pending_hooks.md（若审计声明涉及）
+  ✅ subplot_board.md（若审计声明涉及）
+  ✅ emotional_arcs.md（若审计声明涉及）
+  ✅ particle_ledger.md（若审计声明涉及）
+  ✅ character_matrix.md（若审计声明涉及）
+
+【Step 10 · 快照】
+  ✅ snapshots/{N}/ 存在且含 7 个 truth files
+
+【Step 11 · 索引更新】
+  ✅ index.json 含 ch N 条目且 status ∈ {approved, audited}
+
+==================================================
+✅ 流程审核全部通过（13/13 环节）
+🎉 第 {N} 章完成
+```
+
+**如果任一环节 ❌**，立即进入硬停条件 1——向作者报告具体哪一环节挂了、如何补齐，**不自动进入下一章**。
 
 每 3 章或达到中间节点（例如卷纲的关键节点章）可以给一次小结：
 
