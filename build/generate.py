@@ -46,6 +46,9 @@ ON_DEMAND_BUNDLES = {
         "08-settlement.md",
         "11-hook-governance.md",
     ],
+    "batch-write.md": [
+        "14-batch-write.md",
+    ],
     "audit.md": [
         "02-truth-schema.md",
         "06-audit-system.md",
@@ -78,6 +81,7 @@ CODEX_MODULE_ORDER = [
     "11-hook-governance.md",
     "12-init-book.md",
     "13-commands.md",
+    "14-batch-write.md",
 ]
 
 CLAUDE_CORE_HEADER = """<!-- inkOS Writing System — Claude Code 版（核心 CLAUDE.md）-->

@@ -10,11 +10,12 @@
 
 ```
 <booksRoot>/.claude-modules/
-├── write.md        # 写章流程（§02+§03+§04+§05+§08+§11）
-├── audit.md        # 审计流程（§02+§06）
-├── revise.md       # 修订流程（§02+§07）
-├── init.md         # 新建书流程（§12）
-└── snapshot.md     # 回滚恢复流程（§10）
+├── write.md         # 写章流程（§02+§03+§04+§05+§08+§11）
+├── batch-write.md   # 连写循环（audit-driven spot-fix 循环直到无 warning+）
+├── audit.md         # 审计流程（§02+§06）
+├── revise.md        # 修订流程（§02+§07）
+├── init.md          # 新建书流程（§12）
+└── snapshot.md      # 回滚恢复流程（§10）
 ```
 
 `<booksRoot>` 从 `.ink-writer.yaml` 读取（见 §00 启动流程）。
@@ -27,7 +28,8 @@
 
 | 用户意图 | 触发词示例（按语义判断，不是完整清单）| 先 Read 哪个 |
 |---------|----------------------------------|-------------|
-| 写新章 | "写第 N 章" / "写下一章" / "续写" | `.claude-modules/write.md` |
+| 写新章（单章）| "写第 N 章" / "写下一章" / "续写" | `.claude-modules/write.md` |
+| 连写（批量写 + audit-driven 修订循环）| "连写 X-Y 章" / "连续写 N 章" / "批量写" | `.claude-modules/batch-write.md` |
 | 审计 | "审计第 N 章" / "审稿" / "check chapter N" / "检查 X 问题" / "审计全书" | `.claude-modules/audit.md` |
 | 修订 | "润色" / "修第 N 章的 X" / "spot-fix" / "改写" / "重写"（rework）/ "反检测" / "降低 AI 痕迹" | `.claude-modules/revise.md` |
 | 新建书 | "新建一本书" / "建一本新书" / "我想写一本 XX" | `.claude-modules/init.md` |
@@ -52,7 +54,9 @@
 
 ---
 
-## §13.2 写章类 → 先 Read `.claude-modules/write.md`
+## §13.2 写章类
+
+### 单章 → 先 Read `.claude-modules/write.md`
 
 | 用户说 | 动作 |
 |---|---|
@@ -61,6 +65,15 @@
 | "续写" | 接着上次未完成的草稿继续，不新开章 |
 
 详细 11+1 步流程见 `.claude-modules/write.md`（§04 部分）。
+
+### 连写（批量 + audit-driven 修订循环）→ 先 Read `.claude-modules/batch-write.md`
+
+| 用户说 | 动作 |
+|---|---|
+| "连写 16-20 章" | 循环 ch 16 → ch 20：每章写完跑 audit；若有 warning+ 触发 spot-fix 循环（默认上限 3 轮），然后 snapshot + verify |
+| "连续写 5 章" / "批量写 5 章" | 同上，从下一章开始连写 5 章 |
+
+连写循环的终止条件、迭代上限、章间硬停规则见 `.claude-modules/batch-write.md`。
 
 ---
 
