@@ -186,7 +186,8 @@ def verify_layer1(book_dir: Path, N: int) -> tuple[bool, list]:
             if not (snap / tf).exists():
                 errors.append(f"snapshots/{N}/{tf} 缺失")
 
-    # 4. current_state.md 的"当前章节"字段 == N
+    # 4. current_state.md 的"当前章节"字段 >= N
+    # （严格等于只适用于最新章。对历史章节做 verify 时，current_state 可能已被更新到更高章号）
     cs_path = book_dir / "story/current_state.md"
     if not cs_path.exists():
         errors.append("story/current_state.md 不存在")
@@ -195,9 +196,10 @@ def verify_layer1(book_dir: Path, N: int) -> tuple[bool, list]:
         m = re.search(r"\|\s*当前章节\s*\|\s*(\d+)", cs_text)
         if not m:
             errors.append("current_state.md 没有'当前章节'行")
-        elif int(m.group(1)) != N:
+        elif int(m.group(1)) < N:
             errors.append(
-                f"current_state.md 当前章节 = {m.group(1)}，应为 {N}"
+                f"current_state.md 当前章节 = {m.group(1)}，应 ≥ {N}"
+                f"（说明 ch{N} 写完后未更新 current_state）"
             )
 
     # 5. chapter_summaries.md 包含 ch N 行
@@ -363,8 +365,73 @@ def verify_layer3(book_dir: Path, N: int) -> tuple[bool, list]:
 # Main
 # ==============================================================
 
+def classify_l1_errors(errors: list) -> dict:
+    """将 Layer 1 错误按环节归类，便于生成 per-step checklist"""
+    buckets = {
+        "正文": [],
+        "index.json": [],
+        "snapshot": [],
+        "current_state": [],
+        "chapter_summaries": [],
+        "audit": [],
+    }
+    for e in errors:
+        if "chapters/" in e and "index.json" not in e:
+            buckets["正文"].append(e)
+        elif "index.json" in e:
+            buckets["index.json"].append(e)
+        elif "snapshots/" in e:
+            buckets["snapshot"].append(e)
+        elif "current_state" in e:
+            buckets["current_state"].append(e)
+        elif "chapter_summaries" in e:
+            buckets["chapter_summaries"].append(e)
+        elif "audit" in e:
+            buckets["audit"].append(e)
+    return buckets
+
+
+def classify_l2_errors(errors: list) -> dict:
+    """将 Layer 2 错误按环节归类"""
+    buckets = {"机械禁令": [], "字数": []}
+    for e in errors:
+        if "字数" in e:
+            buckets["字数"].append(e)
+        else:
+            buckets["机械禁令"].append(e)
+    return buckets
+
+
+def classify_l3_errors(errors: list) -> dict:
+    """将 Layer 3 错误按 truth file 归类"""
+    buckets = {
+        "pending_hooks": [],
+        "subplot_board": [],
+        "emotional_arcs": [],
+        "particle_ledger": [],
+        "character_matrix": [],
+    }
+    for e in errors:
+        for tf in buckets:
+            if tf in e:
+                buckets[tf].append(e)
+                break
+    return buckets
+
+
+def print_step(label: str, errors: list) -> bool:
+    """单个环节的 ✅/❌ 行，返回 True 表示通过"""
+    if not errors:
+        print(f"  ✅ {label}")
+        return True
+    print(f"  ❌ {label}")
+    for e in errors:
+        print(f"       · {e}")
+    return False
+
+
 def main():
-    parser = argparse.ArgumentParser(description="验证章节完成的三层不变量")
+    parser = argparse.ArgumentParser(description="章节完成流程审核（per-step checklist）")
     parser.add_argument("books_root", help="books 根目录绝对路径")
     parser.add_argument("book_name", help="书名")
     parser.add_argument("N", type=int, help="章节号")
@@ -380,39 +447,90 @@ def main():
         print(f"❌ 书籍目录不存在：{book_dir}", file=sys.stderr)
         sys.exit(99)
 
-    print(f"验证 {args.book_name} ch{args.N}\n")
+    print(f"=== 第 {args.N} 章流程审核（{args.book_name}）===\n")
 
-    # Layer 1
-    print("— Layer 1: 强制不变量 —")
-    ok1, errs = verify_layer1(book_dir, args.N)
-    if ok1:
-        ok("Layer 1 通过（正文 + index + 快照 + current_state + summaries + 审计）")
+    # 跑三层检查（保留内部逻辑不变）
+    ok1, errs1 = verify_layer1(book_dir, args.N)
+    ok2, errs2 = verify_layer2(book_dir, args.N, allow_short=args.allow_short)
+    ok3, errs3 = verify_layer3(book_dir, args.N)
+
+    l1 = classify_l1_errors(errs1)
+    l2 = classify_l2_errors(errs2)
+    l3 = classify_l3_errors(errs3)
+
+    # Per-step checklist 输出
+    print("【Step 5 · 写正文】")
+    s_write = print_step("chapters/<N>_*.md 存在且非空", l1["正文"])
+    print()
+
+    print("【Step 6 · 机械规则校验】")
+    s_ban = print_step(
+        "禁令扫描（破折号/不是而是/分析术语/markdown 泄漏）",
+        l2["机械禁令"],
+    )
+    s_len = print_step("字数区间检查", l2["字数"])
+    print()
+
+    print("【Step 7 · 审计】")
+    s_audit = print_step("story/audits/ch-N.md 存在", l1["audit"])
+    print()
+
+    print("【Step 9 · 结算：7 个 truth files】")
+    s_cs = print_step(f"current_state.md 当前章节 ≥ {args.N}", l1["current_state"])
+    s_sum = print_step("chapter_summaries.md 含 ch N 行", l1["chapter_summaries"])
+    # Layer 3 条件性（只有审计声明涉及时才检查）
+    s_hooks = print_step(
+        "pending_hooks.md（若审计声明涉及）", l3["pending_hooks"]
+    )
+    s_sub = print_step(
+        "subplot_board.md（若审计声明涉及）", l3["subplot_board"]
+    )
+    s_emo = print_step(
+        "emotional_arcs.md（若审计声明涉及）", l3["emotional_arcs"]
+    )
+    s_led = print_step(
+        "particle_ledger.md（若审计声明涉及）", l3["particle_ledger"]
+    )
+    s_cm = print_step(
+        "character_matrix.md（若审计声明涉及）", l3["character_matrix"]
+    )
+    print()
+
+    print("【Step 10 · 快照】")
+    s_snap = print_step(
+        f"snapshots/{args.N}/ 存在且含 7 个 truth files", l1["snapshot"]
+    )
+    print()
+
+    print("【Step 11 · 索引更新】")
+    s_idx = print_step(
+        "index.json 含 ch N 条目且 status ∈ {approved, audited}", l1["index.json"]
+    )
+    print()
+
+    # 汇总
+    all_steps = [s_write, s_ban, s_len, s_audit, s_cs, s_sum,
+                 s_hooks, s_sub, s_emo, s_led, s_cm, s_snap, s_idx]
+    total_pass = sum(1 for s in all_steps if s)
+    total = len(all_steps)
+
+    print("=" * 50)
+    if ok1 and ok2 and ok3:
+        print(f"✅ 流程审核全部通过（{total}/{total} 环节）")
+        print(f"🎉 第 {args.N} 章完成")
+        sys.exit(0)
     else:
-        for e in errs:
-            fail(1, e)
-        sys.exit(1)
-
-    # Layer 2
-    print("\n— Layer 2: 机械规则 —")
-    ok2, errs = verify_layer2(book_dir, args.N, allow_short=args.allow_short)
-    if ok2:
-        ok("Layer 2 通过（禁令 + 字数）")
-    else:
-        for e in errs:
-            fail(2, e)
-        sys.exit(2)
-
-    # Layer 3
-    print("\n— Layer 3: 条件性副作用 —")
-    ok3, errs = verify_layer3(book_dir, args.N)
-    if ok3:
-        ok("Layer 3 通过（truth files 与审计声明一致）")
-    else:
-        for e in errs:
-            fail(3, e)
-        sys.exit(3)
-
-    print(f"\n🎉 ch{args.N} 全部通过")
+        print(f"❌ 流程审核未通过（{total_pass}/{total} 环节）")
+        # 保留原有 exit code 语义
+        if not ok1:
+            print("   · Layer 1 失败：补齐上方 ❌ 的强制不变量环节")
+            sys.exit(1)
+        if not ok2:
+            print("   · Layer 2 失败：回到 Step 6 机械规则检查 + 修订")
+            sys.exit(2)
+        if not ok3:
+            print("   · Layer 3 失败：审计声明与 truth file 改动不一致，补 Step 9 结算")
+            sys.exit(3)
 
 
 if __name__ == "__main__":
