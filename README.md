@@ -88,9 +88,23 @@ cd ~/experiments && python /path/to/ink-writer/scripts/install.py
 
 `git pull` ink_writer 仓库后，在每个父目录重跑一次 `install.py` 即可刷新。已有的书目录（`books/<某书>/`）和配置（`.ink-writer.yaml`）都不受影响，只有 `CLAUDE.md` 和 `.claude-modules/` 被刷新。
 
-### 为什么不做全局安装？
+### 三种可行方案对比（为什么选目录级）
 
-放 `~/.claude/CLAUDE.md` 会让 Claude Code 在**所有项目**里都加载写作 instruction——你做网页开发、系统运维时也会看到小说写作规则，明显污染。目录级安装是更干净的选择。
+| 方案 | 机制 | 优点 | 缺点 | 适合谁 |
+|------|------|------|------|--------|
+| **A. 目录级（当前默认）** | 每个 books 根各持一份 CLAUDE.md + `.claude-modules/`，Claude Code 向上查找 | 自含、不污染其他项目；不同 books 根可跑不同版本（例如实验用新版，正式写作用稳定版）；迁移目录只要跟着 `books/` 走 | 多个 books 根要多次 `install.py`；升级要在每个父目录重跑 | **几乎所有作者**，尤其只有 1-2 个 books 根的 |
+| **B. 全局级** | 把 CLAUDE.md 和 `.claude-modules/` 放到 `~/.claude/`（Claude Code 用户级全局配置目录），所有项目都加载 | 装一次所有 Claude Code 会话都生效 | **污染其他项目**（你做网页开发/系统运维时也会被塞入小说写作规则）；不同机器要手动同步；路径解析需要改（当前 `.ink-writer.yaml` 基于 cwd 向上查找） | 专职写作的作者，机器上 Claude Code 只用来写作 |
+| **C. 符号链接** | `books/CLAUDE.md` 和 `books/.claude-modules/` 做成 symlink 指向 `<ink_writer 仓库>/dist/…`，单点升级 | `git pull` 即升级所有 books 根，无需重跑 `install.py` | Windows 支持差（要管理员权限或开发者模式）；作者误删 ink_writer 仓库会让所有 books 失效；跨文件系统/云盘（iCloud / Dropbox）symlink 行为不一致 | Unix 重度用户、愿意手动维护的高级作者 |
+
+**ink_writer 默认选 A（目录级）**，因为：
+- 对新手最透明（没有隐藏的全局状态）
+- 不污染 Claude Code 其他项目（B 的主要代价）
+- 跨平台一致（C 在 Windows 和云盘场景不稳）
+- 升级成本可接受（作者一般只有 1-2 个 books 根）
+
+B 和 C 方案目前**不提供自动化脚本**，愿意折腾的作者可以手动：
+- **改 B**：`mkdir -p ~/.claude && cp -R <父目录>/books/CLAUDE.md <父目录>/books/.claude-modules ~/.claude/`（并同步调整 `.ink-writer.yaml` 的定位逻辑）
+- **改 C**：`ln -s <ink_writer 仓库>/dist/CLAUDE.md <父目录>/books/CLAUDE.md && ln -s <ink_writer 仓库>/dist/.claude-modules <父目录>/books/.claude-modules`（作者自担维护责任）
 
 ---
 
