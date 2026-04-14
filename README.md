@@ -28,31 +28,37 @@ ink_writer 是一个**纯 prompt 驱动**的写作系统，配合 Claude Code（
 
 ---
 
-## 安装（2 步）
+## 安装（3 步）
 
 需要先装 Python 3.7+（macOS/Linux 一般已有，Windows 去 python.org 装一下）。你的 python 命令可能是 `python` 或 `python3`——用 `python --version` 确认。
 
-### Step 1：安装（选择一个放 books/ 的父目录）
+### Step 1：下载最新版
+
+前往 [Releases 页面](https://github.com/PapainTea/ink-writer/releases/latest) 下载 `ink-writer-vX.Y.Z.zip`，解压到任意位置（比如 `~/Documents/ink-writer/` 或 `~/Downloads/ink-writer/`）。
+
+**不需要 git，不需要开发环境**——zip 里只含作者用得到的 6 个文件 + dist/ 目录，~90 KB。
+
+### Step 2：安装（选择一个放 books/ 的父目录）
 
 ```bash
 # 假设你想把 books 放在 ~/novels/ 下
 cd ~/novels
-python /path/to/ink-writer/scripts/install.py
-# 或显式传参：python /path/to/ink-writer/scripts/install.py ~/novels
+python ~/Documents/ink-writer/scripts/install.py
+# 或显式传参：python ~/Documents/ink-writer/scripts/install.py ~/novels
 ```
 
 这一步会在 `~/novels/` 下：
 - 创建 `books/` 子目录
-- 拷贝核心 `CLAUDE.md` 进去（~16k chars，含系统角色 / 数据约定 / 机械规则 / 硬性禁令 / 命令路由表）
-- 拷贝 `.claude-modules/` 目录（5 个按需模块：write / audit / revise / init / snapshot，LLM 在你触发对应意图时才读取）
+- 拷贝核心 `CLAUDE.md` 进去（~17k chars，含系统角色 / 数据约定 / 机械规则 / 硬性禁令 / 命令路由表）
+- 拷贝 `.claude-modules/` 目录（6 个按需模块：write / batch-write / audit / revise / init / snapshot，LLM 在你触发对应意图时才读取）
 - 写入 `.ink-writer.yaml` 记录 books 根目录的绝对路径
 
 > `install.py` 默认以 cwd 为父目录，你可以 `cd` 到任何地方再跑（`~/novels/` / `~/Documents/writing/` / iCloud / Dropbox 下都行）。`books/` 这个目录名由 `install.py` 固定，不是作者可选项。
 
-### Step 2：新建书 + 开始写
+### Step 3：新建书 + 开始写
 
 ```bash
-python /path/to/ink-writer/scripts/new-book.py 我的第一本书
+python ~/Documents/ink-writer/scripts/new-book.py 我的第一本书
 cd ~/novels/books/我的第一本书
 claude
 # 然后用自然语言告诉 claude："新建书，我想写一本 XX"
@@ -60,7 +66,15 @@ claude
 
 之后所有写作操作都用自然语言（"写第 1 章"、"审计第 3 章"等），详见下面"用法示例"。
 
-**升级 instruction**：`git pull` 后在同一父目录重跑 `install.py`，`books/CLAUDE.md` 和 `books/.claude-modules/*` 会刷新为最新；已有的 `.ink-writer.yaml` 和书目录不受影响。
+## 升级到新版本
+
+有新版发布时：
+1. 去 [Releases 页面](https://github.com/PapainTea/ink-writer/releases/latest) 下载新的 zip
+2. 解压覆盖你的 `~/Documents/ink-writer/` 目录（老文件替换）
+3. 在原父目录重跑 `python ~/Documents/ink-writer/scripts/install.py`——会刷新 `books/CLAUDE.md` 和 `books/.claude-modules/*` 为最新版
+4. 已有的 `.ink-writer.yaml` 和书目录（`books/<书名>/`）不受影响，你的章节和 truth files 安全
+
+> **开发者可选**：如果你想参与 ink-writer 本身的开发（改 src / 生成 dist），可以 `git clone` 完整仓库——里面含 `src/` 源模块和 `build/generate.py`，这些在发行 zip 里没有。
 
 ---
 
