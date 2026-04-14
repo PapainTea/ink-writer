@@ -19,13 +19,18 @@ for N in [start..end]:
             run write_pipeline(N)   # 含 PRE_WRITE_CHECK / Writer / Post-write-validator / Settler
         else:
             # 后续轮：针对性 spot-fix（按 .claude-modules/revise.md）
-            run spot_fix_revision(N, issues_from_last_audit)
+            # 只传 critical + warning 给 reviser，followup/info **不传**（见 §14.2）
+            issues_to_fix = [i for i in last_audit.issues if i.severity in ("critical", "warning")]
+            if not issues_to_fix:
+                break  # 只剩 followup/info，不用修，直接退出本章循环
+            run spot_fix_revision(N, issues_to_fix)
 
         # 审计
         audit_result = run_audit(N)
+        last_audit = audit_result   # 记录给下一轮 spot-fix 用
 
         if audit_result.criticals == 0 and audit_result.warnings == 0:
-            break  # 本章通过，只剩 info 或 0 问题
+            break  # 本章通过，只剩 followup/info 或 0 问题
 
         iter += 1
 
