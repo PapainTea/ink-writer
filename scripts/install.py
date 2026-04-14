@@ -6,7 +6,8 @@ install.py — ink_writer 用户侧一键安装脚本（跨平台）
 行为：
   1. 在作者指定的父目录下创建 books/ 子目录
   2. 把 ink_writer 仓库的 dist/CLAUDE.md 复制到 books/CLAUDE.md
-  3. 写入 books/.ink-writer.yaml 记录 booksRoot 绝对路径（若已存在则不动）
+  3. 把 dist/.claude-modules/ 整个目录复制到 books/.claude-modules/（覆盖 stale）
+  4. 写入 books/.ink-writer.yaml 记录 booksRoot 绝对路径（若已存在则不动）
 
 用法：
     python install.py [PARENT_DIR]
@@ -91,6 +92,23 @@ def main() -> int:
         err(f"复制 CLAUDE.md 失败：{e}")
         return 1
 
+    # 复制按需加载模块目录（覆盖旧版以清理 stale 模块）
+    dist_modules = ink_root / "dist" / ".claude-modules"
+    target_modules = books_dir / ".claude-modules"
+    if dist_modules.is_dir():
+        try:
+            if target_modules.exists():
+                shutil.rmtree(target_modules)
+            shutil.copytree(dist_modules, target_modules)
+        except OSError as e:
+            err(f"复制 .claude-modules/ 失败：{e}")
+            return 1
+    else:
+        warn(
+            f"{dist_modules} 不存在：跳过按需模块安装。"
+            f"请先跑 `python3 build/generate.py` 生成。"
+        )
+
     yaml_path = books_dir / ".ink-writer.yaml"
     if not yaml_path.exists():
         books_root_posix = books_dir.as_posix()
@@ -108,6 +126,9 @@ def main() -> int:
             return 1
 
     ok(f"ink_writer 已安装到 {books_dir}")
+    if target_modules.is_dir():
+        module_count = len(list(target_modules.glob("*.md")))
+        print(f"   核心 CLAUDE.md + {module_count} 个按需模块（.claude-modules/）")
     new_book_path = (ink_root / "scripts" / "new-book.py").as_posix()
     print("下一步：")
     print(f'  cd "{parent_dir}"')
