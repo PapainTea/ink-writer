@@ -503,6 +503,19 @@
 7. 修改后同步更新状态卡、账本、伏笔池
 8. 保持章节字数在目标区间内（依据 `book_rules.yaml.length` 配置，详见 §03）；只有在修复关键问题确实需要时才允许轻微偏离
 
+### 严重度过滤（audit-driven spot-fix 专用）
+
+当 reviser 被 §04 Step 7-8 的 audit-driven 循环调起时（不是作者手动触发），input 里的 audit issues **只处理 `critical` 和 `warning`**：
+
+- `critical` → 必须修
+- `warning` → 必须修
+- **`followup` → 忽略**（这是后续章节跟进项，不是本章写作问题，见 §06）
+- **`info` → 忽略**（纯说明，不需要动作）
+
+如果 audit 只剩 followup + info（无 critical/warning），**不启动 reviser**——直接进 Step 9 结算。
+
+作者手动触发修订（"润色 ch N" / "改写 ch N"）时忽略此过滤，按作者指令执行。
+
 ## 输出格式
 
 ### spot-fix 模式

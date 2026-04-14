@@ -66,6 +66,7 @@
 | "主角现在和谁是敌人" | 读 `current_state.md` 的"当前敌我"字段 |
 | "某某角色的信息边界" | 读 `character_matrix.md` 的"信息边界"子表 |
 | "最近 N 章的情绪走势" | 读 `emotional_arcs.md` 按章节筛选 |
+| "列出所有 followup" / "后续跟进清单" / "ch N 要做什么" | `Grep -l "followup" story/audits/ch-*.md` 扫出所有含 followup 的审计 md，聚合 `triggerChapter` 字段排序，产出总清单给作者 |
 
 **查询类不修改任何文件**，只汇报信息。
 

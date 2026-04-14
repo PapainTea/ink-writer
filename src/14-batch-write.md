@@ -63,8 +63,14 @@ for N in [start..end]:
 
 ## §14.2 决定何时"触发针对性修订"
 
-**触发条件**：audit_result 含 **≥ 1 个 critical** 或 **≥ 1 个 warning**。
-**不触发条件**：只有 info。
+**触发条件**：audit_result 含 **≥ 1 个 `critical`** 或 **≥ 1 个 `warning`**。
+**不触发条件**：只剩 `followup` 和/或 `info`（或完全干净）。
+
+**注意 followup 和 info 的区别**（严重度定义见 §06）：
+- `followup` = 后续章节需要关注的事（如"ch 20 回收 H053"），**不是本章写作问题**，不修
+- `info` = 纯说明（如"本章是刻意压抑章节"），不需动作
+
+两者都**不触发 spot-fix 循环**，直接放行本章进入 Step 9 结算 + snapshot + verify。
 
 ### 针对性修订的 input
 

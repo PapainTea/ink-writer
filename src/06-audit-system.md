@@ -101,6 +101,11 @@
 > [!info] info
 > **<维度>**：<说明>
 
+> [!tip] followup
+> **后续跟进**：<描述后续章节需要关注的事>
+>
+> **触发章**：<预计在 ch X 处理>
+
 ---
 
 **总结**：<一句话审计结论>
@@ -116,6 +121,7 @@
 | critical | `> [!error] critical` | 红色 |
 | warning | `> [!warning] warning` | 黄色 |
 | info | `> [!info] info` | 蓝色 |
+| **followup** | `> [!tip] followup` | **绿色** |
 
 ### 文件位置约束
 
@@ -143,10 +149,11 @@
   "passed": true/false,
   "issues": [
     {
-      "severity": "critical|warning|info",
+      "severity": "critical|warning|followup|info",
       "category": "审查维度名称",
       "description": "具体问题描述",
-      "suggestion": "修改建议"
+      "suggestion": "修改建议（followup 时改为 triggerChapter）",
+      "triggerChapter": "ch N（仅 followup 用，预计哪章处理）"
     }
   ],
   "summary": "一句话总结审查结论"
@@ -155,11 +162,19 @@
 
 ### 严重度规则
 
-- `critical` —— 阻断级问题，必须修
-- `warning` —— 警告，建议修
-- `info` —— 仅记录，不影响通过
+- `critical` —— **本章存在阻断级问题**，必须修（OOC / 信息越界 / 设定冲突 / 战力崩坏 等影响本章内容的）
+- `warning` —— **本章写作质量问题**，建议修（词汇疲劳 / 节奏 / 配角工具人化 等本章已落笔的问题）
+- `followup` —— **后续章节需要关注的事**，不修本章（如"ch 20 记得回收 H053"、"沈烬线需要在 ch 22 深化"）
+- `info` —— 纯说明 / 作者声明（如"本章是刻意压抑章节，符合卷纲节奏"）
 
-**`passed` 规则**：只有当存在 `critical` 级别问题时，`passed` 才为 `false`。任何数量的 warning / info 都不应导致 `passed=false`。
+**严重度判定原则**：
+- 如果问题是**本章已写内容的硬伤** → `critical` 或 `warning`
+- 如果问题是**本章没问题但后续章需要动作** → `followup`（不可标 warning，避免误触 spot-fix）
+- 如果是**当前无 action，仅记录** → `info`
+
+**`passed` 规则**：只有存在 `critical` 时 `passed=false`。warning / followup / info 都不导致 `passed=false`。
+
+**spot-fix 循环退出条件**（write / batch-write 共用）：`0 critical AND 0 warning`（followup + info 不触发修订循环，也不阻塞进入下一章）。
 
 ## 3 类执行策略
 
