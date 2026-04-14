@@ -480,17 +480,90 @@ python3 .../verify-chapter.py <books-root> <书名> <N> --allow-short
 | **2 机械规则** | 破折号=0 / 不是而是=0 / 分析术语=0 / md 结构泄漏=0 / 字数≥hardMin（softMin 受 `--allow-short` 控制）| exit 2 |
 | **3 条件性副作用** | 审计 md 里声明"推进 X truth file"时，对应文件必须有 ch N 行/变化 | exit 3 |
 
-### 失败处理
+### 失败处理（首次 ❌ 不直接硬停，先进入自动补救循环）
 
-- **Layer 1 失败** → 回到对应步骤补齐（通常是 Step 9 结算或 Step 10 快照漏了）
-- **Layer 2 失败** → 回到 Step 6 跑一次机械校验 + 修订
-- **Layer 3 失败** → 审计声明与实际改动不一致，回到 Step 9 补齐对应 truth file 或调整审计 md
+首次 verify 出现 ❌ 时，**不要立即停下来让作者介入**。先按 §Step 12.1 的规则自动补救（最多 2 轮），仍 ❌ 才向作者报告不能盲修的部分。
 
 **永远不要靠"章节看起来写完了"就收工**。人眼看不出 chapter_summaries 某行粘连、snapshots 某个文件缺失、audits 声明和实际 truth files 不一致——这些都是 verify 脚本擅长捕捉的机械问题。
 
+---
+
+## Step 12.1: verify ❌ 的自动补救循环（单章 + 连写共用）
+
+### 可自动补救的 ❌（LLM 盲做，无需问作者）
+
+| ❌ 环节 | 补救动作 |
+|---------|---------|
+| **Step 10 快照**：`snapshots/N/` 不存在或缺文件 | 按 §10 规则用 `cp` 把 7 个 truth files + `audits/ch-N.md` 复制到 `snapshots/N/`（含 `mkdir -p`）|
+| **Step 11 索引**：`index.json` 无 ch N 条目 | 追加条目：`{number: N, title: 从文件名抽, status: approved/audited（按审计结果）, wordCount: 现场测量, createdAt/updatedAt: 当前 ISO 时间, lengthWarnings: []}` |
+| **Step 7 审计**：`audits/ch-N.md` 缺失 | Read `.claude-modules/audit.md` 后重跑审计流程，输出 ch-N.md |
+| **Step 6 机械禁令**：破折号 / 不是而是 / 分析术语 / markdown 泄漏出现 | Read `.claude-modules/revise.md` 走 spot-fix 清理，重跑 verify |
+| **Step 6 字数**：`softMin > 字数 ≥ hardMin`（偏短但未触底）| 走 §04 Step 6.3 的一次扩写循环 |
+| **Step 9 chapter_summaries 缺 ch N 行** | 基于正文生成 ch N 摘要行追加（8 列：章节/标题/出场/关键事件/状态变化/伏笔动态/情绪/类型）|
+| **Step 9 current_state 当前章节 < N** | 整体覆盖 current_state.md 使"当前章节" = N，其他 7 字段按本章最新状态重写 |
+
+### 不能盲目自动补救的 ❌（必须硬停询问作者）
+
+| ❌ 环节 | 为什么不能盲修 |
+|---------|--------------|
+| **Step 5 正文文件本身缺失或空** | 写章步骤就出错，不能凭空生文 |
+| **Step 6 字数 `> hardMax`** | 压缩涉及删哪段的内容判断，需要作者参与 |
+| **Step 6 字数 `< hardMin`（硬下限）** | 扩写 2 轮仍不过说明故事容量不够，需要作者给新情节/细节方向 |
+| **Step 9 truth file 审计声明涉及但找不到 ch N 相关行** | 结算遗漏事实性改动，需要 LLM 回到 Context 重结算（基于语义判断），盲修易错 |
+
+对这类硬停 ❌，向作者直接报：
+
+```
+❌ ch {N} 自动补救后仍有以下环节未过：
+  - {环节 1}：{为什么不能盲修}
+  - {环节 2}：...
+
+需要你决定：a) 重跑本章（rework）；b) 提供具体指示；c) 暂停，人工介入
+```
+
+### 补救循环伪代码
+
+```
+exit_code, stdout = run_verify(N)
+if exit_code == 0:
+    🎉 完成
+
+remediation_attempt = 0
+while exit_code != 0 and remediation_attempt < 2:
+    errors = parse_errors(stdout)
+    hard_stop_errors = []
+    for err in errors:
+        if err in AUTO_FIXABLE_TABLE:
+            apply_fix(err)
+            告知作者: 🔧 检测到 <err>，已应用 <fix>，重跑 verify...
+        else:
+            hard_stop_errors.append(err)
+    if hard_stop_errors:
+        break  # 不继续补救，直接报告作者
+    exit_code, stdout = run_verify(N)
+    remediation_attempt += 1
+
+# 最终结果
+show_to_author(stdout)  # 完整 13 环节 ✅/❌
+if exit_code == 0:
+    🎉 完成
+else:
+    硬停: report(hard_stop_errors + remaining_❌)
+```
+
+### 每轮补救都告知作者
+
+补救过程不是闷声做。每应用一个 fix，用一行告诉作者：
+
+```
+🔧 检测到 Step 10 ❌（snapshots/16/ 缺失），已复制 7 truth files + audits/ch-16.md 到 snapshots/16/，重跑 verify...
+```
+
+作者看得见 LLM 补了什么；发现补得不对（例如漏 cp 了某文件）可以立即喊停。
+
 ### 例外：`autoRunVerify = false`
 
-`book_rules.yaml.pipeline.autoRunVerify = false` 时 Step 12 跳过（作者自担风险）。默认开启。
+`book_rules.yaml.pipeline.autoRunVerify = false` 时 Step 12 跳过（作者自担风险）。**默认开启**。
 
 ---
 
