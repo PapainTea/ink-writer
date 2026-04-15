@@ -335,3 +335,103 @@ pipeline:                                            # 写章流程行为开关
 **谁读**：Writer / Planner / Composer。
 
 **格式**：自由 Markdown，通常很短（几句话 ~ 一段）。
+
+---
+
+## 迁移老书到 ink.skill 形态
+
+**触发词**：`ink 迁移` / `迁移本书` / `升级到 skill 版本` / `ink migrate`。
+
+### 识别条件
+
+skill 一激活，检查当前书根是否为"老书"：
+- 存在 `chapters/index.json` 和 `story/current_state.md` 且至少有 1 章已写
+- **不存在** `PROGRESS.md`（存在则走幂等性补齐路径，见下方）
+
+若识别为老书 → 提示作者"检测到老书，是否迁移？"，得到确认后执行迁移流程。
+
+### 幂等性检查（R8）
+
+重复执行"ink 迁移"是安全的：
+- 若 `PROGRESS.md` **已存在**：仅**补齐缺段**，不全量重写；追加操作时间线前检测末 5 条中是否已有"迁移完成"事件，有则跳过追加
+- 若对应平台 init 文件（CLAUDE.md / AGENTS.md / GEMINI.md / .cursorrules）**已存在**：不覆盖，提示作者"init 文件已存在，保持不动"
+
+### 迁移流程（6 步）
+
+**Step 1**: Read `chapters/index.json`
+- 获取章节清单 + status + wordCount + createdAt/updatedAt
+- 计算 `last_approved_chapter` = 最后一条 `status=approved` 的章号
+- 计算 `next_chapter` = 最后一条 `status != approved` 的章号，或 `last_approved_chapter + 1`
+
+**Step 2**: Read `story/current_state.md`
+- 获取故事当前状态描述
+- 用于填充 PROGRESS.md 的"当前状态"段
+
+**Step 3**: 聚合 `story/audits/ch-*.md`
+- 遍历所有文件，抽取 severity=followup 的条目
+- 记录每条的：章号来源 / 原文 / 涉及章节（若提及）
+
+**Step 4**: 生成 / 补齐 `PROGRESS.md`
+
+**情况 A：PROGRESS.md 不存在（首次迁移）**
+
+从 `templates/PROGRESS.template.md` 复制模板，填充占位符：
+- `{{book_name}}` → 从当前书目录名推断
+- `{{last_approved_chapter}}` / `{{word_count}}` / `{{approved_date}}` → 从 Step 1 结果
+- `{{next_chapter}}` → 从 Step 1 结果
+- `{{last_action_timestamp}}` → 当前 ISO 时间
+- `{{last_action_summary}}` → `迁移完成（原 markdown-instruction 形态 → ink.skill）`
+- `{{book_root_abs_path}}` → 当前书根绝对路径
+- `{{ts1}}` / `{{action1}}` → 与 last_action 同
+
+活跃 followup 段：把 Step 3 聚合出的条目写入，格式：
+```
+- [ ] ch{来源章} {原文截取 80 字内}
+```
+
+在 PROGRESS.md 末尾（"作者笔记"段**之前**）追加一段"📋 迁移原始数据（临时）"：
+```markdown
+## 📋 迁移原始数据（临时，作者核对无误后可删）  <!-- migration-dump -->
+
+> 迁移时自动把 audits/ 的完整 severity 明细 dump 到这里，便于作者核对。
+> 核对完成后可以整段删除本段。
+
+<逐章 dump 每个 audit 的完整内容，按 ch 升序>
+```
+
+**情况 B：PROGRESS.md 已存在（幂等）**
+
+- 只补齐缺段，按 SKILL.md §4 容错规则
+- 操作时间线段检查末 5 条是否已含"迁移完成"，有则跳过追加
+- 不重新 dump 迁移原始数据段（首次已有）
+- 不覆盖作者笔记段
+
+**Step 5**: 生成当前平台的 init 文件
+
+按 SKILL.md §5 规则（当前平台 agent 自写）：
+- Claude Code → 从 `templates/init/CLAUDE.md.template` 填充 `{{book_name}}` 写入当前书根 `CLAUDE.md`
+- Codex → `AGENTS.md.template` → `AGENTS.md`
+- Gemini CLI → `GEMINI.md.template` → `GEMINI.md`
+- Cursor → `cursorrules.template` → `.cursorrules`
+
+若 init 文件已存在 → 跳过不覆盖。
+
+**Step 6**: 向作者报告
+
+输出一段总结：
+- 本次迁移覆盖章节范围（如 ch1–15）
+- 生成的文件清单（PROGRESS.md、当前平台 init 文件）
+- 活跃 followup 条数
+- 老版 `<父目录>/books/CLAUDE.md`（v1.0.x markdown 分发） + `.claude-modules/` 与新 init 文件并存说明（R11）：
+  > 老版 `CLAUDE.md` 与新 init 不冲突。你可以保留（作备份，新版更精确）或删除（不再回滚 v1.0.x 时）。建议先跑 1-2 个会话验证无问题再决定删除。
+- 下一步建议（新写章、审计、结算等）
+
+**不删除旧文件**：skill 永不主动删除 v1.0.x 分发的 `books/CLAUDE.md` 和 `.claude-modules/`（R11）。
+
+### 误迁移时的回滚
+
+若作者反悔：
+1. 删除本次生成的 `PROGRESS.md` 和 `<platform>.md`
+2. 不需要回滚其他文件（迁移不改 truth files、不动章节正文、不创建快照）
+
+迁移流程本身**设计为零破坏**：只读老数据，只新增 PROGRESS.md 和 init 文件。
