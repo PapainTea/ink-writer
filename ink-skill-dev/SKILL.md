@@ -216,3 +216,26 @@ python3 <ink_writer 仓库>/scripts/verify-chapter.py <booksRoot> <书名> <N_la
    - 声称"verify 通过"但未实际调用脚本（自检：你调用 Bash 工具了吗？没有 → 未跑）
    - 连写时用一句"ch 1-14 均已完成"代替每章的 verify stdout
    **违反后果**：作者有权要求你把每章 verify 重跑一遍并贴输出；在补齐 stdout 之前，已写的章节**不算完成**，status 不得写 `approved`。自检触发点：你准备说"完成"/"写完"/"approved"/"进入下一章"之前 → 先检查上方 3 行内有没有 verify stdout，没有就停下来补。
+
+---
+
+## §8 资源路径解析（reference 模块 + scripts 定位）
+
+本 skill 引用的所有 `reference/*.md` 和 `scripts/*.py` 都在 **skill 自身目录**下。激活时按以下顺序解析绝对路径，取第一个存在的：
+
+1. `$CLAUDE_SKILL_DIR`（若 harness 暴露）
+2. `~/.claude/skills/ink/`（Claude Code 默认安装位置，通常是指向开发目录的 symlink）
+3. `~/.codex/skills/ink/` / `~/.gemini/skills/ink/`（其他平台等价位置）
+4. 向上查找：从当前 cwd 向上逐级找含 `ink-skill-dev/SKILL.md` 或 `SKILL.md` 且 name=ink 的目录
+
+解析完成后，`verify-chapter.py` 的调用形如：
+
+```bash
+python3 <SKILL_DIR>/scripts/verify-chapter.py <booksRoot> <书名> <N>
+```
+
+Read reference 模块同理：`Read <SKILL_DIR>/reference/write.md`。
+
+**降级**：4 个位置都找不到 → 停下来问作者 `ink-skill` 仓库的本地路径，**不要**猜测或使用相对路径（相对路径在 cwd=书根时会错，书根下没有 scripts/）。
+
+**自检**：准备调用 verify-chapter.py 前 → 先确认 SKILL_DIR 已解析；路径里含 `<...>` 占位符说明没解析成功，停下问。
