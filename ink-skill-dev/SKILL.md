@@ -18,58 +18,67 @@ description: |
 
 ---
 
-## §2 激活自检（按顺序执行，不可跳过）
+## §2 激活自检（线性流程，不可乱序、不可跳步）
 
-### 步骤 a：确认当前工作目录
+```
+ a. 定位书根 ──┬─ 不是书根 ─▶ b. 强制询问作者 ──▶ 回到 a
+              └─ 是书根 ──▶ c. 识别书况 ──┬─ PROGRESS.md 存在 ──▶ c.5 健康体检 ──▶ d. 按意图加载
+                                          ├─ 仅 index.json+current_state.md ──▶ 走「迁移老书」(reference/init.md)
+                                          └─ 俱无 ──▶ 走「新建书」(reference/init.md)
+```
 
-检查 cwd 是否为某本书的书根。判断标准：**目录下同时存在 `chapters/` 和 `story/`**。
+### 步骤 a — 定位书根
 
-### 步骤 b：书根不明确时，强制询问
+检查 cwd 是否为某本书的书根。**判据：目录下同时存在 `chapters/` 和 `story/`**。
 
-若 cwd 不是书根（如在 `books/` 父目录或其他位置），**必须先问作者**：
+### 步骤 b — 书根不明确时强制询问
+
+若 cwd 不在书根（如在 `books/` 父目录或其他位置）：
 
 > "你要在哪本书上操作？请给我书根目录的路径。"
 
-等作者明确回答后再继续。**在此之前禁止执行任何写操作**，包括禁止创建 init 文件。
+**在作者明确回答前，禁止任何写操作，包括创建 init 文件**。得到路径后回到步骤 a 重新判定。
 
-### 步骤 c：读 PROGRESS.md
+### 步骤 c — 识别书况（读 PROGRESS.md）
 
-Read `<书根>/PROGRESS.md`。
+Read `<书根>/PROGRESS.md`，按以下三分支路由：
 
-- **文件存在** → 读取，继续步骤 d
-- **文件不存在，且存在 `chapters/index.json` + `story/current_state.md`** → 识别为老书，走"迁移老书"流程（详见 reference/init.md，阶段 6 完成）
-- **文件不存在，且上述文件也不存在** → 走"新建书"流程（详见 reference/init.md）
+| PROGRESS.md | 其他标志 | 分支 |
+|-------------|---------|------|
+| 存在 | — | 继续步骤 c.5 |
+| 不存在 | 有 `chapters/index.json` + `story/current_state.md` | 老书迁移（Read `reference/init.md` 迁移段）|
+| 不存在 | 俱无 | 新建书（Read `reference/init.md` 新建段）|
 
-### 步骤 c.5：pipeline 健康体检（已存在 chapters 时必跑）
+### 步骤 c.5 — pipeline 健康体检（仅当 chapters/index.json 非空时必跑）
 
-若书根下 `chapters/index.json` 已有章节（不是空白新书），**激活时立即对最近一章（index.json 最后一条）跑一次 verify**：
+对最近一章（index.json 最后一条）跑 verify：
 
 ```bash
-python3 <ink_writer 仓库>/scripts/verify-chapter.py <booksRoot> <书名> <N_latest>
+python3 <SKILL_DIR>/scripts/verify-chapter.py <booksRoot> <书名> <N_latest>
 ```
 
-- 全 ✅ → 正常，进入步骤 d
-- 出现 ❌ → **必须在开始任何写操作前警告作者**：
+（`<SKILL_DIR>` 的解析规则见 §8。）
+
+- **全 ✅** → 进入步骤 d
+- **任一 ❌** → 立即向作者发如下警告，**在得到明确指令前禁止写下一章**：
 
   > ⚠️ 健康体检发现 ch {N_latest} 有 {K} 个环节未过：
   > - {环节 1}：{具体 ❌ 描述}
   > - {环节 2}：...
   >
-  > 这意味着之前有 agent 没跑完整 pipeline。在修复前**禁止**继续写下一章，否则新章会基于错误的 truth files 状态，damage 会累积。
-  > 是否要我：a) 对 ch 1-{N_latest} 批量 verify，给出完整损伤地图；b) 直接修 ch {N_latest}；c) 你先看看再说？
+  > 之前有 agent 可能没跑完整 pipeline（漏 Step 10 快照 / Step 11 索引 / Step 12 verify），留下脏数据。在脏地基上继续写，damage 会累积。
+  > 三选一：a) 对 ch 1-{N_latest} 批量 verify 给全量损伤地图；b) 直接修 ch {N_latest}；c) 你先看看再说。
 
-**理由**：另一个 agent（或老版本 skill）可能没执行 Step 10 快照 / Step 11 索引更新 / Step 12 verify，留下脏数据。新会话如果不做体检就直接往下写，等于在脏地基上盖楼。
+### 步骤 d — 按意图加载 truth files
 
-### 步骤 d：按意图加载 truth files
+读 PROGRESS.md 的"📚 真相文件索引"段，按任务意图选读：
 
-读 PROGRESS.md 的"📚 真相文件索引"段，按当前任务意图 Read 对应 truth file：
-
-| 意图 | 优先读 |
-|------|--------|
+| 意图 | 优先 Read |
+|------|-----------|
 | 写章 / 续写 | `current_state.md` + `chapter_summaries.md` |
 | 审计 | `character_matrix.md` + `pending_hooks.md` |
 | 修订 | 对应章节正文 + `story/audits/ch-N.md` |
-| 查询类 | 按问题内容按需读对应 truth file |
+| 查询类 | 按问题内容按需读 |
 
 ---
 
