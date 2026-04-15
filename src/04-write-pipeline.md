@@ -479,9 +479,9 @@ python3 <ink_writer 仓库路径>/scripts/verify-chapter.py <books 绝对路径>
 例：
 
 ```bash
-python3 /Users/admin/Codex/Project/Own/ink_writer/scripts/verify-chapter.py \
-    /Users/admin/novels/books \
-    镜源逆刻 15
+python3 <ink_writer_root>/scripts/verify-chapter.py \
+    <books-root> \
+    <书名> <N>
 ```
 
 如果 PRE_WRITE_CHECK 声明了"本章允许偏短"，加 `--allow-short` 参数：
