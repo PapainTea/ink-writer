@@ -294,7 +294,91 @@ def verify_layer2(book_dir: Path, N: int, allow_short: bool = False) -> tuple[bo
             f"字数 {word_count} > hardMax {th['hardMax']}（超长，需压缩）"
         )
 
+    # v0.1.10: Followup 机制强制约束
+    followup_errors = verify_followup_mechanism(book_dir, N)
+    errors.extend(followup_errors)
+
     return (len(errors) == 0, errors)
+
+
+def _parse_audit_followup_section(audit_path: Path) -> tuple[bool, list]:
+    """
+    返回 (has_followup_section, open_items)。
+    open_items 是 [ ] 状态的 followup 条目文本列表。
+    """
+    if not audit_path.exists():
+        return (False, [])
+    text = audit_path.read_text(encoding="utf-8")
+    # 找 `## Followup` 段（允许 `## Followup` 或 `## Followup（跨章监测项）` 等）
+    m = re.search(r"^## Followup\b.*?$", text, re.MULTILINE)
+    if not m:
+        return (False, [])
+    # 段内容 = 从标题之后到下一个 `## ` 或文件末尾
+    start = m.end()
+    next_h = re.search(r"^## ", text[start:], re.MULTILINE)
+    section = text[start:start + next_h.start()] if next_h else text[start:]
+    open_items = [
+        line.strip() for line in section.splitlines()
+        if re.match(r"^\s*-\s*\[\s*\]\s", line)
+    ]
+    return (True, open_items)
+
+
+def verify_followup_mechanism(book_dir: Path, N: int) -> list:
+    """
+    v0.1.10 新增 Layer 2 检查：
+      (a) audits/ch-N.md 末尾必须有 `## Followup` 段（缺段 = ❌）
+      (b) PROGRESS.md 的活跃 followup 内容 = 所有 audits/ch-*.md `## Followup` 里 [ ] 条目聚合（不一致 = ❌）
+    """
+    errors = []
+    audit_path = book_dir / f"story/audits/ch-{N}.md"
+    # 检查 a
+    if audit_path.exists():
+        has_section, _ = _parse_audit_followup_section(audit_path)
+        if not has_section:
+            errors.append(
+                f"FOLLOWUP: audits/ch-{N}.md 缺 `## Followup` 段（v0.1.10 起强制）"
+            )
+    # 检查 b
+    progress_path = book_dir / "PROGRESS.md"
+    if not progress_path.exists():
+        return errors  # 无 PROGRESS.md 时不检查这项
+    progress_text = progress_path.read_text(encoding="utf-8")
+    m = re.search(r"^## 📌 活跃 followup.*?$", progress_text, re.MULTILINE)
+    if not m:
+        errors.append("FOLLOWUP: PROGRESS.md 缺 `## 📌 活跃 followup` 段")
+        return errors
+    start = m.end()
+    next_h = re.search(r"^## ", progress_text[start:], re.MULTILINE)
+    progress_section = progress_text[start:start + next_h.start()] if next_h else progress_text[start:]
+    progress_items = {
+        line.strip() for line in progress_section.splitlines()
+        if re.match(r"^\s*-\s*\[\s*\]\s", line)
+    }
+    # 聚合所有 audits/ch-*.md 的 [ ] followup
+    aggregated = set()
+    audits_dir = book_dir / "story/audits"
+    if audits_dir.exists():
+        for ap in sorted(audits_dir.glob("ch-*.md")):
+            _, items = _parse_audit_followup_section(ap)
+            aggregated.update(items)
+    # 允许描述略有不同（PROGRESS.md 可能带"来源 chX"括号），做宽松匹配：
+    # 只要 audit open items 的核心 description 能在 progress 某行里找到子串即可
+    def normalize(s):
+        return re.sub(r"\s+", "", s.lower())
+    progress_normalized = [normalize(p) for p in progress_items]
+    missing = []
+    for item in aggregated:
+        # 提取"冒号后"的核心描述
+        core = item.split("：", 1)[-1].split(":", 1)[-1]
+        core_n = normalize(core)
+        if not any(core_n[:20] in pn for pn in progress_normalized):
+            missing.append(item)
+    if missing:
+        errors.append(
+            f"FOLLOWUP: PROGRESS.md 活跃 followup 段与 audits 聚合不一致，缺 {len(missing)} 条（例：{missing[0][:60]}）"
+        )
+    return errors
 
 
 # ==============================================================
@@ -362,6 +446,45 @@ def verify_layer3(book_dir: Path, N: int) -> tuple[bool, list]:
 
 
 # ==============================================================
+# Followup 修复（--fix-progress）
+# ==============================================================
+
+def recompute_progress_followup(book_dir: Path) -> tuple[bool, int]:
+    """
+    聚合所有 audits/ch-*.md `## Followup` 段里的 [ ] 条目，重写 PROGRESS.md 的
+    `## 📌 活跃 followup` 段。只覆盖这一段，其他段一字不动。
+    返回 (修改成功, 写入条数)。
+    """
+    audits_dir = book_dir / "story/audits"
+    progress_path = book_dir / "PROGRESS.md"
+    if not progress_path.exists():
+        return (False, 0)
+    open_items = []
+    if audits_dir.exists():
+        def _ch_num(p: Path) -> int:
+            m = re.search(r"ch-(\d+)", p.name)
+            return int(m.group(1)) if m else 0
+        for ap in sorted(audits_dir.glob("ch-*.md"), key=_ch_num):
+            _, items = _parse_audit_followup_section(ap)
+            open_items.extend(items)
+    text = progress_path.read_text(encoding="utf-8")
+    new_block = "## 📌 活跃 followup  <!-- replace-on-update; 从 story/audits/ 重算 -->\n\n"
+    new_block += "> 每次 Settler 结束前从所有 `story/audits/ch-*.md` 的 `## Followup` 段里 `[ ]` 条目聚合。\n\n"
+    if not open_items:
+        new_block += "- 暂无活跃 followup\n"
+    else:
+        for item in open_items:
+            new_block += item + "\n"
+    new_block += "\n"
+    pattern = re.compile(r"^## 📌 活跃 followup.*?(?=^## )", re.MULTILINE | re.DOTALL)
+    if not pattern.search(text):
+        return (False, 0)  # PROGRESS.md 无该段，拒绝盲写
+    new_text = pattern.sub(new_block, text)
+    progress_path.write_text(new_text, encoding="utf-8")
+    return (True, len(open_items))
+
+
+# ==============================================================
 # Main
 # ==============================================================
 
@@ -393,9 +516,11 @@ def classify_l1_errors(errors: list) -> dict:
 
 def classify_l2_errors(errors: list) -> dict:
     """将 Layer 2 错误按环节归类"""
-    buckets = {"机械禁令": [], "字数": []}
+    buckets = {"机械禁令": [], "字数": [], "followup": []}
     for e in errors:
-        if "字数" in e:
+        if e.startswith("FOLLOWUP:"):
+            buckets["followup"].append(e.replace("FOLLOWUP: ", "", 1))
+        elif "字数" in e:
             buckets["字数"].append(e)
         else:
             buckets["机械禁令"].append(e)
@@ -440,6 +565,11 @@ def main():
         action="store_true",
         help="允许字数低于 softMin（需在 PRE_WRITE_CHECK 声明）",
     )
+    parser.add_argument(
+        "--fix-progress",
+        action="store_true",
+        help="仅在检测到 PROGRESS.md 活跃 followup 段与 audits 聚合不一致时，自动重写该段（只覆盖 📌 活跃 followup 段，其他段不动）。重写完成后重跑一遍 Layer 2 再输出。",
+    )
     args = parser.parse_args()
 
     book_dir = Path(args.books_root) / args.book_name
@@ -453,6 +583,20 @@ def main():
     ok1, errs1 = verify_layer1(book_dir, args.N)
     ok2, errs2 = verify_layer2(book_dir, args.N, allow_short=args.allow_short)
     ok3, errs3 = verify_layer3(book_dir, args.N)
+
+    # --fix-progress: 若 Layer 2 里有 followup 段不一致错误，重写后重跑 Layer 2
+    if args.fix_progress:
+        needs_fix = any(
+            e.startswith("FOLLOWUP:") and "活跃 followup 段与 audits 聚合不一致" in e
+            for e in errs2
+        )
+        if needs_fix:
+            fixed, n = recompute_progress_followup(book_dir)
+            if fixed:
+                print(f"🔧 --fix-progress 已生效：PROGRESS.md 📌 活跃 followup 段重写 {n} 条\n")
+                ok2, errs2 = verify_layer2(book_dir, args.N, allow_short=args.allow_short)
+            else:
+                print("⚠️ --fix-progress 无法生效：PROGRESS.md 不存在或无 📌 活跃 followup 段\n")
 
     l1 = classify_l1_errors(errs1)
     l2 = classify_l2_errors(errs2)
@@ -473,6 +617,7 @@ def main():
 
     print("【Step 7 · 审计】")
     s_audit = print_step("story/audits/ch-N.md 存在", l1["audit"])
+    s_fup = print_step("audit 末尾 `## Followup` 段存在（v0.1.10）", l2["followup"])
     print()
 
     print("【Step 9 · 结算：7 个 truth files】")
@@ -509,7 +654,7 @@ def main():
     print()
 
     # 汇总
-    all_steps = [s_write, s_ban, s_len, s_audit, s_cs, s_sum,
+    all_steps = [s_write, s_ban, s_len, s_audit, s_fup, s_cs, s_sum,
                  s_hooks, s_sub, s_emo, s_led, s_cm, s_snap, s_idx]
     total_pass = sum(1 for s in all_steps if s)
     total = len(all_steps)
