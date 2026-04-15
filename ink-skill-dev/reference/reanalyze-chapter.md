@@ -94,7 +94,7 @@
 <current_state.md>
 
 ## 当前资源账本
-<particle_ledger.md>（数值型体裁有此项）
+<particle_ledger.md>（全书种必备）
 
 ## 当前伏笔池
 <pending_hooks.md>
