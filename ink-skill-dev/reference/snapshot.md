@@ -105,10 +105,20 @@ for f in "$BOOK_DIR/chapters/"*.md; do
   fi
 done
 
-# 从 chapters/index.json 里删除 > N 的条目（用 jq 或手动编辑）
-jq --argjson N "$TARGET" '.chapters |= map(select(.number <= $N))' \
+# 从 chapters/index.json 里删除 > N 的条目
+# 方案 A: jq（推荐，若系统已装）
+jq --argjson N "$TARGET" '. |= map(select(.number <= $N))' \
    "$BOOK_DIR/chapters/index.json" > /tmp/idx.json \
    && mv /tmp/idx.json "$BOOK_DIR/chapters/index.json"
+
+# 方案 B: python fallback（系统无 jq 时）
+python3 -c "
+import json
+p = '$BOOK_DIR/chapters/index.json'
+d = json.load(open(p))
+d = [c for c in d if c['number'] <= $TARGET]
+json.dump(d, open(p, 'w'), ensure_ascii=False, indent=2)
+"
 
 # 删除 > N 的快照
 for d in "$BOOK_DIR/story/snapshots/"*/; do
@@ -118,28 +128,17 @@ for d in "$BOOK_DIR/story/snapshots/"*/; do
   fi
 done
 
-# 清理 pipeline-cache/（可选，避免 stale）
-rm -rf "$BOOK_DIR/story/runtime/pipeline-cache"
-
-# 重建 memory.db（从恢复后的 markdown）
-# 通过 CLI 或 runner.refreshMemoryFromRestoredState 完成
+# 注：memory.db 相关（inkOS 原版有，ink.skill v0.1.x 未迁移；若未来上线 memory.db，
+# 这里需要"重建 memory.db 从恢复后的 markdown"——保留占位）
 ```
 
 ---
 
-## 5. Rework 模式的 7 步完整流程
+## 5. Rework 模式
 
-触发："重写第 N 章"。这是"回滚 + 重生成"的组合操作，由 `runner.reworkChapterFromPreviousSnapshot` 封装。
+Rework（"重写第 N 章"）= 回滚到 ch N-1 + 清理 N 起所有章 + 走完整写章 pipeline 重生成 ch N。
 
-1. **预校验**：确认 `snapshots/(N-1)/` 存在且包含 `current_state.md` + `pending_hooks.md`（否则拒绝执行）
-2. **restoreState(N-1)**：从 `snapshots/(N-1)/` 反向 cp 7 个真相文件到 `story/`
-3. **删除章节正文**：删除 `chapters/000N_*.md` 以及所有 > N 的章节文件
-4. **更新 index.json**：从 chapter index 删除 ch ≥ N 的条目
-5. **清理 pipeline-cache**：`rm -rf story/runtime/pipeline-cache/N/` 避免 stale cache 干扰
-6. **refreshMemoryFromRestoredState(N-1)**：重建 `memory.db`，让 SQLite 事实索引回到 ch N-1 的状态
-7. **调 `_writeNextChapterLocked`**：跑完整 Writer pipeline 生成新的第 N 章（book lock 已持有，走 locked 版本避免死锁）
-
-详细写章流程见 [04-write-pipeline.md](./04-write-pipeline.md)。
+**完整 5 步流程见 `reference/revise.md` 的 § rework 段**（skill 可执行版本）。本节不再重复——单一事实源避免两份描述漂移。
 # 伏笔治理
 
 伏笔治理层提供三组确定性函数，协助 settler / writer 在伏笔生命周期中做出合理判断：陈旧债务检测、新伏笔准入、以及 disposition 分类。
