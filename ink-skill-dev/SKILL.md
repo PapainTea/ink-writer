@@ -223,9 +223,9 @@ python3 <ink_writer 仓库>/scripts/verify-chapter.py <booksRoot> <书名> <N_la
 
 本 skill 引用的所有 `reference/*.md` 和 `scripts/*.py` 都在 **skill 自身目录**下。激活时按以下顺序解析绝对路径，取第一个存在的：
 
-1. `$CLAUDE_SKILL_DIR`（若 harness 暴露）
+1. `$CLAUDE_SKILL_DIR` / `$INK_SKILL_DIR`（若 harness 或用户手动暴露；多数环境没有，跳过到 2）
 2. `~/.claude/skills/ink/`（Claude Code 默认安装位置，通常是指向开发目录的 symlink）
-3. `~/.codex/skills/ink/` / `~/.gemini/skills/ink/`（其他平台等价位置）
+3. `~/.codex/skills/ink/`（Codex CLI 默认）/ `~/.gemini/extensions/skills/ink/`（Gemini CLI 默认）
 4. 向上查找：从当前 cwd 向上逐级找含 `ink-skill-dev/SKILL.md` 或 `SKILL.md` 且 name=ink 的目录
 
 解析完成后，`verify-chapter.py` 的调用形如：
