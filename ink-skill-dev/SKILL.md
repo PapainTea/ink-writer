@@ -219,12 +219,19 @@ python3 <SKILL_DIR>/scripts/verify-chapter.py <booksRoot> <书名> <N_latest>
 6. **先读后写**：任何写操作前必须 Read 对应 truth files，不凭记忆写作
 7. **PROGRESS.md 必更新**：每个 skill 动作完成后必须更新书根的 `PROGRESS.md`
 8. **先 Read reference 再执行**：非查询类意图必须先加载对应 reference 模块（见 §3 输出契约）
-9. **验证必贴律（写章 / 连写 / 重分析章节 的唯一完成证据）**：任何涉及"写 ch N"的 skill 动作（单章写、连写、rework、reanalyze-chapter 回填），**发给作者的最后一条消息必须以 `python3 scripts/verify-chapter.py ... ` 的完整 stdout 块开头**（原样保留 13 个 ✅/❌ 环节 + 最终汇总行）。以下一律视为**违反输出契约 = 章节未完成**：
+9. **验证必贴律（写章 / 连写 / 重分析章节 的唯一完成证据）**
+
+   **规则**：任何"写 ch N"类动作（单章写、连写、rework、reanalyze-chapter 回填），**发给作者的最后一条消息必须以 `python3 scripts/verify-chapter.py ... ` 的完整 stdout 块开头**——原样保留 13 个 ✅/❌ 环节 + 最终汇总行。
+
+   **视为违规（= 章节未完成）的 4 种情形**：
    - 只口头总结（"全部通过"/"流程跑完"/"已完成并审核"）而不贴 stdout
    - 贴截取版（只贴汇总行、省略中间 13 条）
-   - 声称"verify 通过"但未实际调用脚本（自检：你调用 Bash 工具了吗？没有 → 未跑）
-   - 连写时用一句"ch 1-14 均已完成"代替每章的 verify stdout
-   **违反后果**：作者有权要求你把每章 verify 重跑一遍并贴输出；在补齐 stdout 之前，已写的章节**不算完成**，status 不得写 `approved`。自检触发点：你准备说"完成"/"写完"/"approved"/"进入下一章"之前 → 先检查上方 3 行内有没有 verify stdout，没有就停下来补。
+   - 声称"verify 通过"但未实际调用脚本 —— 自检：*你调用 Bash 工具了吗？没有 → 未跑*
+   - 连写时用一句"ch 1-14 均已完成"代替每章各自的 verify stdout
+
+   **违反后果**：作者有权要求你把每章 verify 重跑并贴输出；在补齐 stdout 之前，已写章节**不算完成**，`index.json.status` 不得写 `approved`。
+
+   **自检触发点**：准备说"完成"/"写完"/"approved"/"进入下一章"之前 → 检查上方 3 行内有无 verify stdout，没有就停下来补。
 
 ---
 
