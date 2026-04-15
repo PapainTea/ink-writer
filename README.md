@@ -8,6 +8,14 @@ ink_writer 是一个**纯 prompt 驱动**的写作系统，配合 Claude Code（
 
 ---
 
+## ink.skill 已发布！
+
+如果你用 Claude Code / Codex / Gemini CLI 等 AI agent，推荐使用 [skill 版本](https://github.com/PapainTea/ink-skill)：安装一次跨平台可用、自动迁移老书。
+
+原 markdown instruction 分发（v1.0.x）继续维护，已有作者可继续使用。
+
+---
+
 ## 这是什么
 
 **核心价值**：让 AI 写作者像专业编辑团队一样工作。
