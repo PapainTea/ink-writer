@@ -93,7 +93,9 @@ python3 <SKILL_DIR>/scripts/verify-chapter.py <booksRoot> <书名> <N_latest>
 | 审计章节 | `reference/audit.md` | 审计章节 / 审计第 N 章 / 审稿 |
 | 修订章节（润色、扩写、压缩、重写） | `reference/revise.md` | 润色 / 扩写 / 压缩 / 修订 / 改写 / 重写 |
 | 新建书 / 迁移老书 / 初始化 | `reference/init.md` | 新建一本 / ink 初始化 / ink init / ink 迁移 / ink migrate |
-| 结算 / 快照 / 伏笔治理 | `reference/snapshot.md` | 结算章节 / 章节结算 / 快照 / 伏笔 / 资源账本 / 粒子账本 |
+| 结算章节（更新 7 truth files） | `reference/settler.md` | 结算章节 / 章节结算 / 更新真相文件 |
+| 快照 / 回滚到第 N 章 | `reference/snapshot.md` | 快照 / 创建快照 / 回滚到第 N 章 |
+| 伏笔治理（陈旧 / 准入 / 分类）| `reference/hook-governance.md` | 陈旧伏笔 / 列出未回收伏笔 / H0xx 到期 / 伏笔准入 |
 | 查询 7 个真相文件的 schema | `reference/truth-schema.md` | 角色交互矩阵 / 资源账本 / 人物矩阵 / 粒子账本 / 世界观 / 章节大纲 / 真相文件 |
 | 重分析已有章节 / 回填 truth files | `reference/reanalyze-chapter.md` | 重分析第 N 章 / 分析已有章节 / 从外部章节导入 / 回填 truth files |
 | fact 提取独立阶段 | `reference/observer.md` | 提取 facts / 复核 facts / （通常由其他流程内部调用，也可独立触发）|

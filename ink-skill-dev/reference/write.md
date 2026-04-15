@@ -26,7 +26,7 @@
 
 拿到 observations 后，**再切换 prompt**，让 LLM 作为"结算专家"把 observations 按 9 分析维度合并到 7 个 truth files 的 delta。
 
-**prompt 详情**：Read `reference/snapshot.md`（含 settler 完整 prompt）。输出格式：`=== SECTION: current_state ===` / `=== SECTION: particle_ledger ===` 等段。
+**prompt 详情**：Read `reference/settler.md`（含 settler 完整 prompt + 7 个 `=== UPDATED_XXX ===` 输出段规范）。Settler 写 `pending_hooks.md` 时遵守 `reference/hook-governance.md` 的 3 组确定性函数（陈旧检测 / 准入 / 分类）。
 
 此阶段**写 truth files + 追加 chapter_summaries**。
 
