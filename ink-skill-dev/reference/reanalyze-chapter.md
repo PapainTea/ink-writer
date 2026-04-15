@@ -30,6 +30,10 @@
 
 ## 流程（对应 inkOS chapter-analyzer.ts）
 
+### Step 0: 前置动作（必读）
+
+分析正文前**必须** Read `reference/writing-bans.md`（核心硬性禁令）——虽然 reanalyze 不产生新正文，但审计维度要核对已有正文是否违反禁令。Step 4.5 的回填审计也依赖这份规则。
+
 ### Step 1: 加载 Context
 
 从 `<书根>/story/` 读取全部 truth files（同写章 Step 2 的必读文件清单）：

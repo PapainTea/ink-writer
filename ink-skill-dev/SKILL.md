@@ -90,7 +90,9 @@ python3 <SKILL_DIR>/scripts/verify-chapter.py <booksRoot> <书名> <N_latest>
 |---------|---------|-----------|
 | 写单章（新章、续写） | `reference/write.md` | 写第 N 章 / 续写 / 写下一章 |
 | 连写（批量写多章） | `reference/batch-write.md` | 连写 / 连写 N 章 / 连续写作 / 批量写 / 连续写 N 章 |
-| 审计章节 | `reference/audit.md` | 审计章节 / 审计第 N 章 / 审稿 |
+| 审计章节（37 维语义连续性） | `reference/audit.md` | 审计章节 / 审计第 N 章 / 审稿 |
+| 写后机械规则校验（Step 6 自动调用） | `reference/post-write-validator.md` | Step 6 / 写后校验 / 机械规则 |
+| 核心写作硬性禁令（任何产出正文前必读） | `reference/writing-bans.md` | 硬性禁令 / 破折号 / 不是而是 / markdown 泄漏 |
 | 修订章节（润色、扩写、压缩、重写） | `reference/revise.md` | 润色 / 扩写 / 压缩 / 修订 / 改写 / 重写 |
 | 新建书 / 迁移老书 / 初始化 | `reference/init.md` | 新建一本 / ink 初始化 / ink init / ink 迁移 / ink migrate |
 | 结算章节（更新 7 truth files） | `reference/settler.md` | 结算章节 / 章节结算 / 更新真相文件 |
