@@ -246,6 +246,7 @@ python3 <SKILL_DIR>/scripts/verify-chapter.py <booksRoot> <书名> <N_latest>
     TARGET: <本章 target>
     PLOT_THRESHOLD: <target × 0.88>
     HARD_GATE: <target>
+    BEAT_SHEET_COVERAGE: <命中场景数>/<总场景数>
     分流判定: <"推剧情续写" | "扩写补细节" | "字数达标">
     ```
 
